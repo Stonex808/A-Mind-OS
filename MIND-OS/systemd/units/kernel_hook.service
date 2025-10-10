@@ -1,0 +1,12 @@
+[Unit]
+Description=Refocus Kernel Hook (eBPF)
+After=network.target
+Before=refocus-pre.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/refocus-kernel-hook
+Restart=always
+
+[Install]
+WantedBy=refocus-pre.target
