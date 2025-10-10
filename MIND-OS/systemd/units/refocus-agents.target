@@ -1,5 +1,0 @@
-[Unit]
-Description=Refocus-OS Agents Target
-
-[Install]
-WantedBy=default.target
