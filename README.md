@@ -104,10 +104,11 @@ GRACE redacts PII, enforces TTLs, and manages hot/warm/cold vector tiers for sem
 
 ## Getting Started (Scaffold)
 
-1. Clone or extract this repo.  
-2. `scripts/setup.sh` — prepare envs, install deps.  
-3. `scripts/dev.sh` — run local services (orchestrator, security, HUD).  
-4. Open the HUD and press **Alt+Enter** to test the intent loop.
+1. Clone or extract this repo.
+2. `scripts/setup.sh` — prepare envs, install deps.
+3. Review and adjust `config/refocus-os.toml` to fit your deployment (system limits, LLM runtime socket path, security toggles). The defaults ship with headless, local-first assumptions—keep secrets out of the file or rotate it into encrypted storage if needed.
+4. `scripts/dev.sh` — run local services (orchestrator, security, HUD).
+5. Open the HUD and press **Alt+Enter** to test the intent loop.
 
 > Pro Tip: On supported editors, **Alt+Enter** auto-initiates the demo workflow end-to-end.
 
