@@ -1,6 +1,4 @@
-Should I continue with the remaining memory types?
-
----
+Please don't delete this file till youre done creating all the standalone files out of the content in this readme.
 
 ## Phase 5.2: Semantic Memory - Week 18
 
