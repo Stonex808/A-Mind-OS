@@ -113,6 +113,38 @@ GRACE redacts PII, enforces TTLs, and manages hot/warm/cold vector tiers for sem
 
 ---
 
+## Python Core (ArtHippoNet Memory)
+
+The `python_core` package implements the ArtHippoNet memory stack (episodic, semantic, and procedural stores). Everything runs locally
+and persists to `./data/memory/**` using human-readable JSON so you can audit or back up data with standard tools.
+
+### Local Dependencies
+
+Install the memory dependencies into your virtual environment:
+
+```bash
+pip install chromadb sentence-transformers
+pip install structlog  # optional, enables structured JSON logs
+```
+
+These libraries do not phone home when configured as above (`anonymized_telemetry=False`). The first use of
+`SentenceTransformer('all-MiniLM-L6-v2')` will try to download model weights; fetch them once while online, then cache them in
+`~/.cache/torch` for offline reuse or distribute the files across machines as needed.
+
+### Running the Memory Demo
+
+From the repository root:
+
+```bash
+python -m python_core.test_complete_memory
+```
+
+The script exercises episodic storage, semantic fact learning, and procedural extraction. Data is kept locally under
+`./data/memory/` so remember to secure that directory if it contains sensitive material (e.g., encrypt the folder or keep it on
+an encrypted volume).
+
+---
+
 ## Development Workflow
 
 - **Contracts First:** Define/validate JSON contracts in `/config/contracts`.  
