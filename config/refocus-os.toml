@@ -1,0 +1,21 @@
+[system]
+log_dir = "/var/log/refocus-os"
+ipc_buffer_size = 1048576
+max_agents = 128
+
+[llm]
+model_name = "microsoft/Phi-3-mini-4k-instruct"
+socket_path = "/tmp/refocus-llm-service.sock"
+max_batch_size = 32
+max_context_length = 4096
+gpu_memory_utilization = 0.9
+tensor_parallel_size = 1
+
+[orchestrator]
+scheduler_interval_ms = 100
+max_task_queue_size = 1000
+
+[security]
+enable_ebpf_monitoring = true
+enable_anomaly_detection = true
+enable_prompt_injection_defense = true
