@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Refocus-OS Local Shell Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#intent-input">Skip to intent input</a>
+    <main class="app-shell" aria-label="Refocus-OS shell prototype">
+      <header class="hero-card">
+        <div>
+          <p class="eyebrow">Local-first prototype</p>
+          <h1>Refocus-OS Intent Shell</h1>
+          <p class="hero-copy">
+            A visible, offline-first command surface for testing intent capture before any Tauri or backend integration.
+          </p>
+        </div>
+        <div class="hero-status" aria-label="Prototype status">
+          <span class="status-pill">Offline only</span>
+          <span class="status-pill">No telemetry</span>
+          <span class="status-pill">Keyboard ready</span>
+        </div>
+      </header>
+
+      <section class="grid-layout" aria-label="Shell workspace">
+        <section class="panel panel-intent" aria-labelledby="intent-title">
+          <div class="panel-head">
+            <h2 id="intent-title">Intent input</h2>
+            <p>Type a clear request, then press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> or use the submit button.</p>
+          </div>
+
+          <form id="intent-form" novalidate>
+            <label for="intent-input" class="label-strong">What should the system do?</label>
+            <textarea
+              id="intent-input"
+              name="intent"
+              rows="8"
+              maxlength="500"
+              placeholder="Example: Summarize today’s local activity log and highlight blocked tasks."
+              aria-describedby="intent-help intent-error"
+              required
+            ></textarea>
+            <div class="helper-row">
+              <p id="intent-help">Input stays in this browser session unless you choose to persist it later.</p>
+              <p id="intent-counter" aria-live="polite">0 / 500</p>
+            </div>
+            <p id="intent-error" class="error-text" role="alert"></p>
+
+            <div class="action-row">
+              <button type="submit" id="submit-intent" class="button button-primary">Submit intent</button>
+              <button type="button" id="load-demo" class="button button-secondary">Load demo intent</button>
+              <button type="button" id="clear-intent" class="button button-secondary">Clear input</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-log" aria-labelledby="activity-title">
+          <div class="panel-head">
+            <h2 id="activity-title">Activity log</h2>
+            <p>Local JSON-backed demo events. New submissions appear at the top for easy review.</p>
+          </div>
+          <ol id="activity-log" class="list-stack" tabindex="0" aria-live="polite"></ol>
+        </section>
+
+        <section class="panel panel-memory" aria-labelledby="memory-title">
+          <div class="panel-head">
+            <h2 id="memory-title">Memory panel</h2>
+            <p>Simple local notes showing what the prototype would retain or reference.</p>
+          </div>
+          <ul id="memory-list" class="list-stack" tabindex="0"></ul>
+        </section>
+
+        <section class="panel panel-safety" aria-labelledby="safety-title">
+          <div class="panel-head">
+            <h2 id="safety-title">Emergency controls</h2>
+            <p>Use the stop button to clear the active state immediately. No hidden steps.</p>
+          </div>
+          <button type="button" id="emergency-stop" class="button button-danger">Clear emergency stop</button>
+          <p id="stop-status" class="stop-status" aria-live="assertive">
+            System ready. No emergency stop active.
+          </p>
+          <div class="local-notes">
+            <h3>Privacy notes</h3>
+            <ul>
+              <li>No cloud requests or analytics are used in this prototype.</li>
+              <li>Demo data is loaded from <code>ui/shell/demo-data.json</code>.</li>
+              <li>A future persisted mode should encrypt sensitive history at rest.</li>
+            </ul>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

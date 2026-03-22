@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+
+data/demo/
+data/memory/episodic_local/
+data/memory/semantic_local/
+data/memory/procedural/

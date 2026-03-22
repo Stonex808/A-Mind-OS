@@ -1,24 +1,24 @@
 # System Architecture: Refocus-OS
 
 ## Core Philosophy
-Refocus-OS converts the Linux userspace into a cognitive runtime secured by an intelligent defense fabric. It operates through a central nervous system (Message Bus) and a brainstem (Orchestrator) that direct a colony of agents within verifiable security boundaries. Efficiency, modularity, deterministic reasoning, and proactive protection are the design foundations.
+Refocus-OS is currently a blueprint for a cognitive runtime secured by a layered defense fabric. The repository already includes local-first intent-ingress security hooks and structured audit storage, while the broader Message Bus, Orchestrator, and kernel-level defenses remain planned. Efficiency, modularity, deterministic reasoning, and proactive protection are the design foundations.
 
 ## Architectural Layers
 
-**Layer 0: Hardware & Kernel**  
-A custom Debian base with standard Linux Kernel and eBPF instrumentation. Performance-critical components such as attention kernels, syscall monitors, and integrity verifiers are implemented at the driver/eBPF level.
+**Layer 0: Hardware & Kernel (planned)**  
+A custom Debian base with standard Linux Kernel and prospective eBPF instrumentation. Performance-critical components such as attention kernels, syscall monitors, and integrity verifiers are architectural goals, not current repository features.
 
 **Layer 1: Model Runtime**  
 A high-efficiency inference server (vLLM or llama.cpp) runs the foundation model enhanced with NHA, handling quantization, LoRA loading, and batch scheduling.
 
 **Layer 2: Hydra Defense System**  
-Implements the Adaptive Integrity Shield. It continuously audits agent communications, code outputs, and syscall behaviors through the LangSec, CodeSec, and SysSec guard models.
+The current repository implements only the earliest local security hooks: intent sanitization/schema validation, structured local auditing, and explicit execution allowlists. Dedicated LangSec, CodeSec, and SysSec services remain planned.
 
-**Layer 3: IPC Message Bus**  
-A Unix-socket-based, schema-validated bus for inter-agent messaging. Each envelope is versioned, signed, and inspected by the Hydra Defense layer before being delivered. Messages include GRACE semantic embeddings for long-term retrieval and audit.
+**Layer 3: IPC Message Bus (planned)**  
+A Unix-socket-based, schema-validated bus for inter-agent messaging is planned. Versioned, signed envelopes and Hydra inspection are design targets rather than implemented features.
 
-**Layer 4: The Orchestrator & Services**  
-The brainstem coordinating system intent, decomposition, and scheduling. It fuses user and background inputs into consensus intents, decomposes them into subtasks using MATPO, and manages execution via the Compute Economist.
+**Layer 4: The Orchestrator & Services (planned)**  
+The future orchestrator will fuse user and background inputs into consensus intents, decompose them into subtasks using MATPO, and manage execution via the Compute Economist. Today, only the local ingress validation and execution-policy primitives are implemented.
 
 **Layer 5: Specialist Agents**  
 Independent sandboxed workers performing tasks defined by their contracts. Each operates in a restricted namespace, communicating only through the Message Bus with authenticated envelopes.
@@ -29,20 +29,26 @@ A Tauri/React HUD and Terminal provide minimal graphical surfaces for interactin
 ## Core Subsystems and Logic Flow
 
 ### Orchestrator (`services/orchestrator/`)
-**Purpose:** Central reasoning and coordination hub.  
+**Purpose:** Planned central reasoning and coordination hub.  
 **Components:**
 - **Intent Fusion Network (IFN):** Weighted vector fusion of sanitized user/system intents.
 - **Planner/Worker Scheduler:** MATPO for task DAG generation and assignment.
 - **Compute Economist:** Budgets from `economist.yaml` to optimize token/time.
 - **Contract Registry:** Loads & validates semver JSON contracts from `/etc/refocus/contracts` or the developer mirror in `config/contracts/`, beginning with `config/contracts/envelope.v1.schema.json` and the concrete service contracts `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.
+- **Implemented now:** local intent ingress validation/sanitization hooks live in `python_core/refocus_core/intent_security.py` and can be wired into an eventual orchestrator endpoint.
+- **Planned later — Intent Fusion Network (IFN):** weighted vector fusion of sanitized user/system intents.
+- **Planned later — Planner/Worker Scheduler:** MATPO for task DAG generation and assignment.
+- **Planned later — Compute Economist:** budgets from `economist.yaml` to optimize token/time.
+- **Planned later — Contract Registry:** loads and validates semver JSON contracts from `/etc/refocus/contracts`.
 
 ### Hydra Defense System (`services/security/`)
-**Purpose:** Continuous adaptive protection.  
+**Purpose:** Continuous adaptive protection, currently at an early local-first stage.  
 **Components:**
-- **Kernel Hook Service:** eBPF syscall tracing + ZeroMQ publication.
-- **LG-A (LangSec):** Prompt sanitization & injection defense.
-- **LG-B (CodeSec):** Code safety validation & vuln scanning.
-- **LG-C (SysSec):** Real-time anomaly detection + kill-switch.
+- **Implemented now:** local schema validation, sanitization, execution allowlists, and JSONL/SQLite audit logging.
+- **Planned later — Kernel Hook Service:** eBPF syscall tracing + local publication.
+- **Planned later — LG-A (LangSec):** prompt sanitization & injection defense daemon.
+- **Planned later — LG-B (CodeSec):** code safety validation & vulnerability scanning.
+- **Planned later — LG-C (SysSec):** real-time anomaly detection + kill-switch.
 
 ### Message Bus & Semantic Spine (`ops/ipc/`)
 **Purpose:** Communication backbone + memory reference.  
@@ -61,9 +67,15 @@ A Tauri/React HUD and Terminal provide minimal graphical surfaces for interactin
 - **NHA Kernels, ArtHippoNet, Reflection Daemon.**
 
 ### Example Logic Flow: Secure Request
-1. Intent Capture → 2. Sanitization → 3. Fusion → 4. Planning → 5. Execution → 6. Monitoring → 7. Verification → 8. Output
+1. Intent Capture → 2. **Implemented now:** local sanitization/schema validation + audit → 3. **Planned later:** fusion → 4. **Planned later:** planning → 5. **Implemented now for future execution paths:** allowlist gate + audit → 6. **Planned later:** monitoring → 7. **Planned later:** verification → 8. **Planned later:** output
 
 ## Security & Integrity Enhancements
+**Implemented now**
+- Local intent sanitization and schema validation.
+- Explicit allowlist enforcement for future command/tool execution paths.
+- Local structured audit persistence in JSONL or SQLite.
+
+**Planned later**
 - ed25519 agent keys; rotating nonces.
 - eBPF syscall whitelists per agent.
 - Hash-linked audit chains.

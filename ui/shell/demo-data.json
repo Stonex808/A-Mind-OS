@@ -1,0 +1,34 @@
+{
+  "demoIntent": "Review the local activity log, summarize the last two completed tasks, and flag anything waiting for verification.",
+  "activity": [
+    {
+      "title": "Hydra integrity scan completed",
+      "detail": "Local sandbox scan finished with no critical alerts. Results stored in offline audit cache.",
+      "timestamp": "2026-03-22 08:15 UTC"
+    },
+    {
+      "title": "Planner queued follow-up",
+      "detail": "A local-only reminder was created to validate budget caps before agent execution.",
+      "timestamp": "2026-03-22 08:12 UTC"
+    },
+    {
+      "title": "Memory refresh available",
+      "detail": "Three semantic notes were updated from local JSON snapshots. No network sync attempted.",
+      "timestamp": "2026-03-22 08:05 UTC"
+    }
+  ],
+  "memory": [
+    {
+      "label": "Recent priority",
+      "value": "Keep the shell prototype transparent, offline, and easy to inspect."
+    },
+    {
+      "label": "Safety reminder",
+      "value": "Avoid logging secrets in plaintext and add encrypted storage before handling real user data."
+    },
+    {
+      "label": "Next step",
+      "value": "Replace demo JSON with a local API or SQLite adapter when backend endpoints are ready."
+    }
+  ]
+}

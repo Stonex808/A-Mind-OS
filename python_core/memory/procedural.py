@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from refocus_core.logging import setup_logging
+from ..refocus_core.logging import setup_logging
 
 logger = setup_logging("procedural-memory")
 
@@ -46,7 +46,7 @@ class ProceduralMemory:
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.procedures: Dict[str, Procedure] = {}
         self._load_procedures()
-        logger.info("procedural_memory_initialized", persist_directory=str(self.persist_dir))
+        logger.info("procedural_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
 
     def store_procedure(self, procedure: Procedure) -> str:
         if not procedure.id:
