@@ -208,6 +208,41 @@ an encrypted volume).
 
 ---
 
+
+## Local Shell Prototype
+
+A minimal visible prototype now lives in `ui/shell/` and runs entirely offline with plain HTML, CSS, and JavaScript. It is intentionally simple so the interaction model can be validated before wiring in Tauri or backend services.
+
+### What the prototype includes
+
+- A large labeled intent input with `Ctrl+Enter` submit support.
+- A visible submit button plus clear/load-demo controls.
+- A local activity log fed from `ui/shell/demo-data.json` and updated in-browser.
+- A memory panel showing local notes only.
+- A large emergency-stop control that disables submission with no hidden steps.
+- Obvious labels, focus states, and keyboard navigation for all controls.
+
+### Run it locally
+
+```bash
+python -m http.server 4173 --directory ui/shell
+```
+
+Then open `http://localhost:4173` in your browser. A lightweight local server is recommended because browsers often block `fetch()` calls for JSON files when pages are opened directly with the `file://` protocol.
+
+### Walkthrough
+
+1. Start a local static server in `ui/shell/` and open the page in your browser.
+2. Review the hero status badges to confirm the prototype is offline-only and telemetry-free.
+3. Type into **Intent input** or choose **Load demo intent** to populate an example request.
+4. Press **Ctrl+Enter** or click **Submit intent** to append a sanitized entry to the top of the activity log.
+5. Browse the **Memory panel** to see the local-only context this prototype exposes.
+6. Use **Clear emergency stop** to simulate a halt: the intent field is disabled until you release the stop state.
+
+### Screenshots
+
+Screenshot capture is pending in this environment because the required browser screenshot tool was not available during this run. Once available, add current captures from `ui/shell/` here.
+
 ## Development Workflow
 
 - **Contracts First:** Define/validate JSON contracts in `/config/contracts`.  
