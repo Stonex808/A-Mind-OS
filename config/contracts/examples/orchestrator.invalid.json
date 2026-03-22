@@ -1,0 +1,27 @@
+{
+  "id": "env 001",
+  "timestamp": "2026-03-22 10:00:00",
+  "src": "UI.HUD",
+  "dst": "planner",
+  "verb": "delete.everything",
+  "payload": {
+    "intent": "",
+    "requested_by": "",
+    "task_refs": "health-check",
+    "constraints": {
+      "allow_network": "yes",
+      "require_verifier": true
+    }
+  },
+  "budget": {
+    "max_tokens": 0,
+    "max_ms": -1,
+    "priority": "rush"
+  },
+  "signature": {
+    "algorithm": "rsa",
+    "key_id": "",
+    "value": "short"
+  },
+  "schema_version": "2.0.0"
+}

@@ -1,0 +1,34 @@
+{
+  "id": "env-001",
+  "timestamp": "2026-03-22T10:00:00Z",
+  "src": "ui.hud",
+  "dst": "orchestrator",
+  "verb": "plan.create",
+  "payload": {
+    "intent": "Summarize local system health without network access.",
+    "requested_by": "user.local",
+    "task_refs": ["health-check", "summary"],
+    "constraints": {
+      "allow_network": false,
+      "require_verifier": true,
+      "sensitive_fields": ["api_key"]
+    },
+    "context": {
+      "workspace": "/workspace/A-Mind-OS",
+      "interactive": false
+    }
+  },
+  "budget": {
+    "max_tokens": 1200,
+    "max_ms": 3000,
+    "priority": "high",
+    "max_depth": 4,
+    "cost_center": "local-dev"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "ui-hud-key",
+    "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "schema_version": "1.0.0"
+}

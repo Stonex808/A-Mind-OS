@@ -1,0 +1,25 @@
+{
+  "id": "env-langsec-001",
+  "timestamp": "2026-03-22T10:07:00Z",
+  "src": "orchestrator",
+  "dst": "lg_a_langsec",
+  "verb": "security.scan_prompt",
+  "payload": {
+    "content": "",
+    "content_type": "script",
+    "policy_mode": "aggressive",
+    "redact_fields": ["token", "token"],
+    "caller_risk": "extreme"
+  },
+  "budget": {
+    "max_tokens": 600,
+    "max_ms": 1500,
+    "priority": "high"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "orchestrator-key",
+    "value": "fedcba9876543210"
+  },
+  "schema_version": "1.0.0"
+}

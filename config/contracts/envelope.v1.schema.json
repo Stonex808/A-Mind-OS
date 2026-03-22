@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refocus-os.local/contracts/envelope.v1.schema.json",
+  "title": "Refocus-OS Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "timestamp",
+    "src",
+    "dst",
+    "verb",
+    "payload",
+    "budget",
+    "signature",
+    "schema_version"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "src": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "dst": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_tokens", "max_ms", "priority"],
+      "properties": {
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "max_ms": {"type": "integer", "minimum": 1},
+        "priority": {
+          "type": "string",
+          "enum": ["low", "normal", "high", "critical"]
+        },
+        "max_depth": {"type": "integer", "minimum": 1},
+        "cost_center": {"type": "string", "minLength": 1}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"type": "string", "const": "ed25519"},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 32}
+      }
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    }
+  }
+}

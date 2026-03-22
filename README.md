@@ -38,7 +38,7 @@ See **ARCHITECTURE.md** for deep detail. High level summary:
 - **Layer 0 – Hardware & Kernel:** Debian base + Linux kernel + eBPF instrumentation for attention kernels, syscall monitors, integrity verifiers.  
 - **Layer 1 – Model Runtime:** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
 - **Layer 2 – Hydra Defense System:** Adaptive Integrity Shield (LangSec / CodeSec / SysSec) auditing prompts, code, and syscalls.  
-- **Layer 3 – IPC Message Bus:** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit.  
+- **Layer 3 – IPC Message Bus:** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit. Start with `config/contracts/envelope.v1.schema.json`, then service-specific contracts such as `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.  
 - **Layer 4 – Orchestrator & Services:** Intent fusion, MATPO planner, Compute Economist, contract registry.  
 - **Layer 5 – Specialist Agents:** Sandboxed workers bound by per‑agent contracts & whitelists.  
 - **Layer 6 – UI Layer:** Tauri/React HUD + AI Terminal, global hotkeys, voice controls.
@@ -126,6 +126,7 @@ Install the memory dependencies into your virtual environment:
 ```bash
 pip install chromadb sentence-transformers
 pip install structlog  # optional, enables structured JSON logs
+pip install jsonschema  # required for local contract validation
 ```
 
 These libraries do not phone home when configured as above (`anonymized_telemetry=False`). The first use of
@@ -148,7 +149,7 @@ an encrypted volume).
 
 ## Development Workflow
 
-- **Contracts First:** Define/validate JSON contracts in `/config/contracts`.  
+- **Contracts First:** Define/validate JSON contracts in `/config/contracts`, especially `config/contracts/envelope.v1.schema.json`, `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`. Validate local fixtures from `config/contracts/examples/` before wiring new services.  
 - **Agent Stubs:** Implement sockets + health endpoints, then register with Orchestrator.  
 - **Policy Tuning:** Adjust `config/economist.yaml` budgets.  
 - **Security Gates:** All PRs run LangSec/CodeSec checks and unit tests for envelope schema.
@@ -167,7 +168,7 @@ an encrypted volume).
 
 ## Contributing
 
-PRs welcome. Keep changes modular, contracts versioned (semver), and wire-once through the Bus.
+PRs welcome. Keep changes modular, contracts versioned (semver), and wire-once through the Bus. Contributors should update the local contract set in `config/contracts/envelope.v1.schema.json`, `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json` before adding new services.
 
 ## License
 

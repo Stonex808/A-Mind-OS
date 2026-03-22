@@ -1,0 +1,27 @@
+{
+  "id": "env-verify-001",
+  "timestamp": "2026-03-22T10:05:00Z",
+  "src": "orchestrator",
+  "dst": "verifier_trm",
+  "verb": "verify.output",
+  "payload": {
+    "artifact_ref": "artifacts/plan-001.json",
+    "artifact_type": "plan",
+    "checks": ["schema", "policy"],
+    "hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "notes": "Offline validation only."
+  },
+  "budget": {
+    "max_tokens": 800,
+    "max_ms": 2500,
+    "priority": "normal",
+    "max_depth": 2,
+    "cost_center": "verification"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "orchestrator-key",
+    "value": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+  },
+  "schema_version": "1.0.0"
+}
