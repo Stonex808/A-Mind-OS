@@ -4,26 +4,43 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
+import os
 import socketserver
 import sqlite3
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PYTHON_CORE = REPO_ROOT / "python_core"
-if str(PYTHON_CORE) not in sys.path:
-    sys.path.insert(0, str(PYTHON_CORE))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from memory.memory_integration import CompleteAgentMemoryInterface  # noqa: E402
+from python_core.memory.memory_integration import (  # noqa: E402
+    CompleteAgentMemoryInterface,
+    SensitiveContentError,
+    sanitize_for_local_persistence,
+)
 
 DATA_DIR = REPO_ROOT / "data" / "demo"
 RULES_PATH = Path(__file__).resolve().parent / "rules" / "local_rules.json"
 DEFAULT_SOCKET_PATH = DATA_DIR / "orchestrator.sock"
-INTENT_RE = re.compile(r"\s+")
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    tomllib = None  # type: ignore[assignment]
+
+
+@dataclass(frozen=True)
+class DemoPersistenceSettings:
+    data_dir: Path
+    runs_dir: Path
+    db_path: Path
+    sensitive_content_mode: str
+    max_run_artifacts: int
+    retention_days: int
 
 
 @dataclass
@@ -40,7 +57,7 @@ class LocalVerifier:
             self.rules = json.load(handle)
 
     def verify(self, raw_intent: str) -> VerificationResult:
-        cleaned = INTENT_RE.sub(" ", raw_intent.strip())
+        cleaned = " ".join(raw_intent.strip().split())
         reasons: list[str] = []
         lowered = cleaned.lower()
 
@@ -68,14 +85,63 @@ class LocalVerifier:
         )
 
 
+def _load_demo_config() -> dict[str, Any]:
+    config_path = REPO_ROOT / "config" / "refocus-os.toml"
+    if tomllib is None or not config_path.exists():
+        return {}
+    with open(config_path, "rb") as handle:
+        payload = tomllib.load(handle)
+    return payload.get("local_persistence", {})
+
+
+def _resolve_demo_path(raw: str | None, default: Path) -> Path:
+    if not raw:
+        return default
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        return candidate
+    return (REPO_ROOT / candidate).resolve()
+
+
+def _serialize_demo_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def load_demo_persistence_settings() -> DemoPersistenceSettings:
+    config = _load_demo_config()
+    demo = config.get("demo", {}) if isinstance(config.get("demo", {}), dict) else {}
+    sensitive = config.get("sensitive_content", {}) if isinstance(config.get("sensitive_content", {}), dict) else {}
+    data_dir = _resolve_demo_path(os.environ.get("REFOCUS_DEMO_DATA_DIR") or demo.get("data_dir"), DATA_DIR)
+    runs_dir = _resolve_demo_path(os.environ.get("REFOCUS_DEMO_RUNS_DIR") or demo.get("runs_dir"), data_dir / "runs")
+    db_path = _resolve_demo_path(os.environ.get("REFOCUS_DEMO_DB_PATH") or demo.get("db_path"), data_dir / "orchestrator.db")
+    sensitive_mode = str(os.environ.get("REFOCUS_SENSITIVE_CONTENT_MODE") or demo.get("sensitive_content_mode") or sensitive.get("mode") or "redact").strip().lower()
+    if sensitive_mode not in {"off", "redact", "refuse"}:
+        sensitive_mode = "redact"
+    max_run_artifacts = max(int(demo.get("max_run_artifacts", 50)), 0)
+    retention_days = max(int(demo.get("retention_days", 7)), 0)
+    return DemoPersistenceSettings(
+        data_dir=data_dir,
+        runs_dir=runs_dir,
+        db_path=db_path,
+        sensitive_content_mode=sensitive_mode,
+        max_run_artifacts=max_run_artifacts,
+        retention_days=retention_days,
+    )
+
+
 class LocalArtifactStore:
-    def __init__(self, data_dir: Path) -> None:
-        self.data_dir = data_dir
-        self.runs_dir = data_dir / "runs"
+    def __init__(self, settings: DemoPersistenceSettings) -> None:
+        self.settings = settings
+        self.data_dir = settings.data_dir
+        self.runs_dir = settings.runs_dir
+        self.db_path = settings.db_path
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = data_dir / "orchestrator.db"
         self._init_db()
+        self.cleanup_old_artifacts()
 
     def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -96,21 +162,51 @@ class LocalArtifactStore:
             )
             conn.commit()
 
+    def cleanup_old_artifacts(self) -> None:
+        now = time.time()
+        if self.settings.retention_days > 0:
+            cutoff = now - (self.settings.retention_days * 86400)
+            for artifact_path in sorted(self.runs_dir.glob("run-*.json")):
+                if artifact_path.stat().st_mtime < cutoff:
+                    artifact_path.unlink(missing_ok=True)
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM orchestrator_runs WHERE created_at < ?", (cutoff,))
+                conn.commit()
+
+        if self.settings.max_run_artifacts > 0:
+            artifacts = sorted(self.runs_dir.glob("run-*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+            for artifact_path in artifacts[self.settings.max_run_artifacts :]:
+                artifact_path.unlink(missing_ok=True)
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    """
+                    DELETE FROM orchestrator_runs
+                    WHERE id NOT IN (
+                        SELECT id FROM orchestrator_runs ORDER BY created_at DESC LIMIT ?
+                    )
+                    """,
+                    (self.settings.max_run_artifacts,),
+                )
+                conn.commit()
+
     def persist_run(self, *, source: str, raw_intent: str, verification: VerificationResult, result: Dict[str, Any]) -> Dict[str, Any]:
         created_at = time.time()
+        sanitized_payload = sanitize_for_local_persistence(
+            {
+                "created_at": created_at,
+                "source": source,
+                "raw_intent": raw_intent,
+                "normalized_intent": verification.normalized_intent,
+                "action": verification.action,
+                "accepted": verification.accepted,
+                "reasons": verification.reasons,
+                "result": result,
+            },
+            self.settings.sensitive_content_mode,
+        )
         artifact_path = self.runs_dir / f"run-{int(created_at * 1000)}.json"
-        payload = {
-            "created_at": created_at,
-            "source": source,
-            "raw_intent": raw_intent,
-            "normalized_intent": verification.normalized_intent,
-            "action": verification.action,
-            "accepted": verification.accepted,
-            "reasons": verification.reasons,
-            "result": result,
-        }
         with open(artifact_path, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
+            json.dump(sanitized_payload, handle, indent=2)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -120,25 +216,34 @@ class LocalArtifactStore:
                 """,
                 (
                     created_at,
-                    source,
-                    raw_intent,
-                    verification.normalized_intent,
-                    verification.action,
-                    1 if verification.accepted else 0,
-                    json.dumps(verification.reasons),
-                    str(artifact_path.relative_to(REPO_ROOT)),
+                    sanitized_payload["source"],
+                    sanitized_payload["raw_intent"],
+                    sanitized_payload["normalized_intent"],
+                    sanitized_payload["action"],
+                    1 if sanitized_payload["accepted"] else 0,
+                    json.dumps(sanitized_payload["reasons"]),
+                    _serialize_demo_path(artifact_path),
                 ),
             )
             conn.commit()
-        payload["artifact_path"] = str(artifact_path.relative_to(REPO_ROOT))
-        return payload
+        sanitized_payload["artifact_path"] = _serialize_demo_path(artifact_path)
+        sanitized_payload["persistence"] = {
+            "data_dir": _serialize_demo_path(self.data_dir),
+            "max_run_artifacts": self.settings.max_run_artifacts,
+            "retention_days": self.settings.retention_days,
+            "sensitive_content_mode": self.settings.sensitive_content_mode,
+        }
+        self.cleanup_old_artifacts()
+        return sanitized_payload
 
 
 class LocalOrchestratorDemo:
     def __init__(self, data_dir: Path = DATA_DIR, rules_path: Path = RULES_PATH) -> None:
+        del data_dir
+        self.settings = load_demo_persistence_settings()
         self.memory = CompleteAgentMemoryInterface("local_demo_orchestrator", prefer_local_fallback=True)
         self.verifier = LocalVerifier(rules_path)
-        self.artifacts = LocalArtifactStore(data_dir)
+        self.artifacts = LocalArtifactStore(self.settings)
         self._seed_local_context()
 
     def _seed_local_context(self) -> None:
@@ -154,6 +259,26 @@ class LocalOrchestratorDemo:
     def process_intent(self, raw_intent: str, source: str) -> Dict[str, Any]:
         verification = self.verifier.verify(raw_intent)
         recall = self.memory.recall_for_situation(verification.normalized_intent or raw_intent)
+        try:
+            sanitize_for_local_persistence(
+                {
+                    "raw_intent": raw_intent,
+                    "normalized_intent": verification.normalized_intent,
+                    "result": recall,
+                },
+                self.settings.sensitive_content_mode,
+            )
+        except SensitiveContentError as exc:
+            return {
+                "status": "refused",
+                "message": str(exc),
+                "persisted": False,
+                "memory_recall": {"status": "skipped_for_privacy"},
+                "persistence": {
+                    "data_dir": _serialize_demo_path(self.settings.data_dir),
+                    "sensitive_content_mode": self.settings.sensitive_content_mode,
+                },
+            }
         if verification.accepted:
             outcome = self._apply_memory_action(verification, recall)
         else:
