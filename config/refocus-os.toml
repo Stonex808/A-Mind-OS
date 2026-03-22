@@ -19,3 +19,22 @@ max_task_queue_size = 1000
 enable_ebpf_monitoring = true
 enable_anomaly_detection = true
 enable_prompt_injection_defense = true
+
+
+[local_persistence.storage]
+semantic_dir = "data/user/memory/semantic_local"
+episodic_dir = "data/user/memory/episodic_local"
+procedural_dir = "data/user/memory/procedural"
+
+[local_persistence.demo]
+data_dir = "data/demo"
+runs_dir = "data/demo/runs"
+db_path = "data/demo/orchestrator.db"
+retention_days = 7
+max_run_artifacts = 50
+sensitive_content_mode = "redact"
+
+[local_persistence.sensitive_content]
+mode = "redact"
+backup_guidance = "Back up demo and user-memory directories into encrypted archives or an encrypted volume; local files are plain JSON/SQLite by design."
+encryption_guidance = "Use full-disk encryption or an encrypted data volume if local intents or memory may contain sensitive information."

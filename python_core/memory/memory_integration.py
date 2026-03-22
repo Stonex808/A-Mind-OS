@@ -3,37 +3,189 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import uuid
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..refocus_core.logging import setup_logging
 
 from .episodic import Episode, EpisodicMemory
-from .procedural import ProceduralMemory, Procedure
+from .procedural import ActionStep, ProceduralMemory, Procedure
 from .semantic import Concept, Fact, SemanticMemory
 
 logger = setup_logging("memory-integration")
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+_REDACTION_TEXT = "[REDACTED-SENSITIVE]"
+_DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "refocus-os.toml"
+_SENSITIVE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("private_key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", re.IGNORECASE)),
+    ("password_assignment", re.compile(r"\b(password|passwd|pwd)\b\s*[:=]\s*\S+", re.IGNORECASE)),
+    ("api_key_assignment", re.compile(r"\b(api[-_ ]?key|token|secret)\b\s*[:=]\s*\S+", re.IGNORECASE)),
+    ("bearer_token", re.compile(r"\bbearer\s+[a-z0-9._\-]+", re.IGNORECASE)),
+    ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("github_token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
+    ("slack_token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    ("ssn", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
+    ("card_number", re.compile(r"\b(?:\d[ -]*?){13,19}\b")),
+)
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    tomllib = None  # type: ignore[assignment]
+
+
+@dataclass(frozen=True)
+class LocalPersistenceSettings:
+    semantic_dir: Path
+    episodic_dir: Path
+    procedural_dir: Path
+    sensitive_content_mode: str
+
+
+def _load_local_persistence_overrides() -> Dict[str, Any]:
+    if tomllib is None or not _DEFAULT_CONFIG_PATH.exists():
+        return {}
+    with open(_DEFAULT_CONFIG_PATH, "rb") as handle:
+        payload = tomllib.load(handle)
+    return payload.get("local_persistence", {})
+
+
+def _resolve_path(value: Optional[str], default: str) -> Path:
+    raw = value or default
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        return candidate
+    return (_DEFAULT_CONFIG_PATH.parent.parent / candidate).resolve()
+
+
+def _normalize_sensitive_mode(value: Optional[str], default: str = "redact") -> str:
+    mode = (value or default).strip().lower()
+    if mode not in {"off", "redact", "refuse"}:
+        return default
+    return mode
+
+
+def get_local_persistence_settings() -> LocalPersistenceSettings:
+    config = _load_local_persistence_overrides()
+    storage = config.get("storage", {}) if isinstance(config.get("storage", {}), dict) else {}
+    sensitive = config.get("sensitive_content", {}) if isinstance(config.get("sensitive_content", {}), dict) else {}
+
+    return LocalPersistenceSettings(
+        semantic_dir=_resolve_path(
+            os.environ.get("REFOCUS_MEMORY_SEMANTIC_DIR") or storage.get("semantic_dir"),
+            "data/user/memory/semantic_local",
+        ),
+        episodic_dir=_resolve_path(
+            os.environ.get("REFOCUS_MEMORY_EPISODIC_DIR") or storage.get("episodic_dir"),
+            "data/user/memory/episodic_local",
+        ),
+        procedural_dir=_resolve_path(
+            os.environ.get("REFOCUS_MEMORY_PROCEDURAL_DIR") or storage.get("procedural_dir"),
+            "data/user/memory/procedural",
+        ),
+        sensitive_content_mode=_normalize_sensitive_mode(
+            os.environ.get("REFOCUS_SENSITIVE_CONTENT_MODE") or sensitive.get("mode"),
+            default="redact",
+        ),
+    )
+
+
+class SensitiveContentError(ValueError):
+    """Raised when local persistence refuses obviously sensitive content."""
+
+
+def _sanitize_string(value: str, mode: str) -> str:
+    sanitized = value
+    matches: list[str] = []
+    for name, pattern in _SENSITIVE_PATTERNS:
+        if pattern.search(sanitized):
+            matches.append(name)
+            sanitized = pattern.sub(_REDACTION_TEXT, sanitized)
+    if matches and mode == "refuse":
+        raise SensitiveContentError(
+            "refusing to persist obviously sensitive content " + f"({', '.join(sorted(set(matches)))})"
+        )
+    return sanitized
+
+
+def sanitize_for_local_persistence(value: Any, mode: str) -> Any:
+    if mode == "off":
+        return value
+    if isinstance(value, str):
+        return _sanitize_string(value, mode)
+    if isinstance(value, list):
+        return [sanitize_for_local_persistence(item, mode) for item in value]
+    if isinstance(value, dict):
+        return {key: sanitize_for_local_persistence(item, mode) for key, item in value.items()}
+    return value
+
+
+def sanitize_procedure_for_local_persistence(procedure: Procedure, mode: str) -> Procedure:
+    sanitized_steps = [
+        {
+            "action": step.action,
+            "parameters": step.parameters,
+            "expected_outcome": step.expected_outcome,
+        }
+        for step in procedure.steps
+    ]
+    sanitized_payload = sanitize_for_local_persistence(
+        {
+            "id": procedure.id,
+            "name": procedure.name,
+            "description": procedure.description,
+            "steps": sanitized_steps,
+            "success_count": procedure.success_count,
+            "failure_count": procedure.failure_count,
+            "avg_execution_time": procedure.avg_execution_time,
+            "preconditions": procedure.preconditions or [],
+            "postconditions": procedure.postconditions or [],
+            "tags": procedure.tags or [],
+        },
+        mode,
+    )
+    return Procedure(
+        id=sanitized_payload["id"],
+        name=sanitized_payload["name"],
+        description=sanitized_payload["description"],
+        steps=[ActionStep(**step) for step in sanitized_payload["steps"]],
+        success_count=sanitized_payload["success_count"],
+        failure_count=sanitized_payload["failure_count"],
+        avg_execution_time=sanitized_payload["avg_execution_time"],
+        preconditions=sanitized_payload["preconditions"],
+        postconditions=sanitized_payload["postconditions"],
+        tags=sanitized_payload["tags"],
+    )
 
 
 class LocalSemanticMemory:
     """JSON-backed semantic fallback that avoids optional vector dependencies."""
 
-    def __init__(self, persist_directory: str = "./data/memory/semantic_local") -> None:
-        self.persist_dir = Path(persist_directory)
+    def __init__(self, persist_directory: Optional[str] = None, sensitive_content_mode: Optional[str] = None) -> None:
+        settings = get_local_persistence_settings()
+        self.persist_dir = Path(persist_directory) if persist_directory else settings.semantic_dir
+        self.sensitive_content_mode = _normalize_sensitive_mode(sensitive_content_mode, settings.sensitive_content_mode)
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.facts_path = self.persist_dir / "facts.json"
         self.concepts_path = self.persist_dir / "concepts.json"
         self.facts: List[Fact] = self._load_facts()
         self.concepts: List[Concept] = self._load_concepts()
-        logger.info("local_semantic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
+        logger.info(
+            "local_semantic_memory_initialized",
+            extra={
+                "persist_directory": str(self.persist_dir),
+                "sensitive_content_mode": self.sensitive_content_mode,
+            },
+        )
 
     def store_fact(self, fact: Fact) -> str:
+        fact = Fact(**sanitize_for_local_persistence(asdict(fact), self.sensitive_content_mode))
         for existing in self.facts:
             if (existing.subject, existing.predicate, existing.object) == (fact.subject, fact.predicate, fact.object):
                 return existing.id or ""
@@ -46,6 +198,7 @@ class LocalSemanticMemory:
         return fact.id
 
     def store_concept(self, concept: Concept) -> str:
+        concept = Concept(**sanitize_for_local_persistence(asdict(concept), self.sensitive_content_mode))
         for existing in self.concepts:
             if existing.name == concept.name and existing.definition == concept.definition:
                 return existing.id or ""
@@ -125,14 +278,23 @@ class LocalSemanticMemory:
 class LocalEpisodicMemory:
     """JSON-backed episodic fallback that uses token overlap for recall."""
 
-    def __init__(self, persist_directory: str = "./data/memory/episodic_local") -> None:
-        self.persist_dir = Path(persist_directory)
+    def __init__(self, persist_directory: Optional[str] = None, sensitive_content_mode: Optional[str] = None) -> None:
+        settings = get_local_persistence_settings()
+        self.persist_dir = Path(persist_directory) if persist_directory else settings.episodic_dir
+        self.sensitive_content_mode = _normalize_sensitive_mode(sensitive_content_mode, settings.sensitive_content_mode)
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.episodes_store = self.persist_dir / "episodes"
         self.episodes_store.mkdir(parents=True, exist_ok=True)
-        logger.info("local_episodic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
+        logger.info(
+            "local_episodic_memory_initialized",
+            extra={
+                "persist_directory": str(self.persist_dir),
+                "sensitive_content_mode": self.sensitive_content_mode,
+            },
+        )
 
     def store_episode(self, episode: Episode) -> str:
+        episode = Episode(**sanitize_for_local_persistence(asdict(episode), self.sensitive_content_mode))
         if not episode.id:
             episode.id = str(uuid.uuid4())
         path = self.episodes_store / f"{episode.id}.json"
@@ -186,11 +348,21 @@ class ArtHippoNet:
 
     def __init__(self, agent_id: str, prefer_local_fallback: bool = False) -> None:
         self.agent_id = agent_id
+        settings = get_local_persistence_settings()
+        self.sensitive_content_mode = settings.sensitive_content_mode
         self.episodic, self.semantic = self._build_memory_backends(prefer_local_fallback=prefer_local_fallback)
-        self.procedural = ProceduralMemory()
-        logger.info("arthipponet_initialized", extra={"agent_id": agent_id})
+        self.procedural = ProceduralMemory(persist_directory=str(settings.procedural_dir))
+        logger.info(
+            "arthipponet_initialized",
+            extra={
+                "agent_id": agent_id,
+                "sensitive_content_mode": self.sensitive_content_mode,
+                "procedural_directory": str(settings.procedural_dir),
+            },
+        )
 
     def _build_memory_backends(self, prefer_local_fallback: bool = False) -> tuple[Any, Any]:
+        settings = get_local_persistence_settings()
         if not prefer_local_fallback:
             try:
                 return EpisodicMemory(), SemanticMemory()
@@ -199,7 +371,16 @@ class ArtHippoNet:
                     "vector_memory_unavailable_using_local_fallback",
                     extra={"reason": str(exc), "agent_id": self.agent_id},
                 )
-        return LocalEpisodicMemory(), LocalSemanticMemory()
+        return (
+            LocalEpisodicMemory(
+                persist_directory=str(settings.episodic_dir),
+                sensitive_content_mode=settings.sensitive_content_mode,
+            ),
+            LocalSemanticMemory(
+                persist_directory=str(settings.semantic_dir),
+                sensitive_content_mode=settings.sensitive_content_mode,
+            ),
+        )
 
     def integrated_recall(self, situation: str) -> Dict[str, Any]:
         logger.info("integrated_recall_start", extra={"agent_id": self.agent_id, "situation": situation[:50]})
@@ -245,11 +426,22 @@ class ArtHippoNet:
 
         if episode.success and len(episode.actions) >= 2:
             procedure_name = f"procedure_from_{episode.id[:8]}" if episode.id else f"procedure_{int(time.time())}"
-            self.procedural.extract_procedure_from_episode(
-                episode_data={"actions": episode.actions, "tags": episode.tags or []},
+            learned_procedure = Procedure(
+                id=None,
                 name=procedure_name,
                 description=f"Learned from: {episode.task}",
+                steps=[
+                    ActionStep(action=action, parameters={}, expected_outcome="")
+                    for action in episode.actions
+                ],
+                success_count=1,
+                tags=episode.tags or [],
             )
+            sanitized_procedure = sanitize_procedure_for_local_persistence(
+                learned_procedure,
+                self.sensitive_content_mode,
+            )
+            self.procedural.store_procedure(sanitized_procedure)
 
         logger.info("learned_from_episode", extra={"episode_id": episode.id, "agent_id": self.agent_id})
 
@@ -317,4 +509,8 @@ __all__ = [
     "CompleteAgentMemoryInterface",
     "LocalEpisodicMemory",
     "LocalSemanticMemory",
+    "LocalPersistenceSettings",
+    "SensitiveContentError",
+    "get_local_persistence_settings",
+    "sanitize_for_local_persistence",
 ]
