@@ -16,16 +16,16 @@ The foundation model uses **Native Hybrid Attention (NHA)** to sustain vast, per
 ### Single-Model, Multi-Role Delegation
 A single optimized foundation model performs multiple roles (Planner, WebAgent, Verifier, etc.) through specialized prompts and toolsets, coordinated by **Multi-Agent Tool-Integrated Policy Optimization (MATPO)**.
 
-### Secure by Design
-The **Adaptive Integrity Shield** protects the system through three coordinated defense layers: **LangSec** for prompt sanitization, **CodeSec** for code verification, and **SysSec** for system call anomaly detection.
+### Security Roadmap with Early Local Protections
+The long-term design centers on the **Adaptive Integrity Shield**: **LangSec** for intent sanitization, **CodeSec** for code verification, and **SysSec** for system monitoring. **Implemented now:** local intent sanitization/schema validation plus local audit logging and allowlist-based execution gates in `python_core/refocus_core/`. **Planned later:** dedicated LangSec/CodeSec/SysSec daemons, eBPF monitoring, and verifier enforcement.
 
 ### Quiet, Headless Operation
 Agents run as silent background services with minimal visual noise. User interaction occurs via voice or global hotkeys, with the **AI Terminal** and **HUD** providing real-time visibility into active intents and resource budgets.
 
-### Verifiable and Self-Improving
-All actions are verifiable through deterministic logs, signed envelopes, and idempotent replay data. A **reflection daemon** learns from operational and security logs to refine internal policies continuously without retraining the core model.
+### Auditable by Design, with Verifiability Planned
+**Implemented now:** structured local audit logging in JSONL or SQLite for intent-ingress and future execution-policy decisions. **Planned later:** deterministic replay data, signed envelopes, verifier-backed approvals, and reflection daemons that learn from operational logs.
 
-**Current Status:** Blueprint and boot specification phase. This repository defines the architectural plan, agent directives, and subsystem contracts necessary for multi-agent implementation.
+**Current Status:** Mostly blueprint and boot-specification phase, with a small set of concrete local Python security primitives for intent ingress, audit logging, and execution allowlists. See `SECURITY.md` for exact guarantees and non-goals.
 
 > Pro Tip: Press **Alt + Enter** to auto-capture the current selection as an intent and send it to the Orchestrator—no manual steps.
 
@@ -35,10 +35,10 @@ All actions are verifiable through deterministic logs, signed envelopes, and ide
 
 See **ARCHITECTURE.md** for deep detail. High level summary:
 
-- **Layer 0 – Hardware & Kernel:** Debian base + Linux kernel + eBPF instrumentation for attention kernels, syscall monitors, integrity verifiers.  
-- **Layer 1 – Model Runtime:** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
-- **Layer 2 – Hydra Defense System:** Adaptive Integrity Shield (LangSec / CodeSec / SysSec) auditing prompts, code, and syscalls.  
-- **Layer 3 – IPC Message Bus:** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit.  
+- **Layer 0 – Hardware & Kernel (planned):** Debian base + Linux kernel + prospective eBPF instrumentation for attention kernels, syscall monitors, and integrity verifiers.  
+- **Layer 1 – Model Runtime (planned):** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
+- **Layer 2 – Hydra Defense System (partially planned):** today the repo includes local intent sanitization/schema validation and local audit/allowlist hooks; dedicated LangSec / CodeSec / SysSec services remain planned.  
+- **Layer 3 – IPC Message Bus (planned):** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit.  
 - **Layer 4 – Orchestrator & Services:** Intent fusion, MATPO planner, Compute Economist, contract registry.  
 - **Layer 5 – Specialist Agents:** Sandboxed workers bound by per‑agent contracts & whitelists.  
 - **Layer 6 – UI Layer:** Tauri/React HUD + AI Terminal, global hotkeys, voice controls.
@@ -70,23 +70,29 @@ Sequential secure startup enforced via unit dependencies.
 ## Example Logic Flow: Secure User Request
 
 1. **Intent Capture:** User selects code and presses **Alt+Enter**.  
-2. **Sanitization:** LG‑A screens for injection.  
-3. **Fusion:** Orchestrator IFN fuses sanitized intent with context.  
-4. **Planning:** MATPO builds a task DAG.  
-5. **Execution:** Authenticated envelopes sent to agents via Bus.  
-6. **Monitoring:** eBPF stream scored by LG‑C.  
-7. **Verification:** TRM + CodeSec validate outputs.  
-8. **Output:** HUD shows verified result; anomalies trigger quarantine.
+2. **Implemented now — Ingress hardening:** local hooks can sanitize text, validate schema, and write an audit record before planning.  
+3. **Planned later — Fusion:** Orchestrator IFN fuses sanitized intent with context.  
+4. **Planned later — Planning:** MATPO builds a task DAG.  
+5. **Implemented now for future paths — Execution gate:** any command/tool request should pass an explicit allowlist check and audit log.  
+6. **Planned later — Monitoring:** eBPF stream scored by LG‑C.  
+7. **Planned later — Verification:** TRM + CodeSec validate outputs.  
+8. **Planned later — Output:** HUD shows verified result; anomalies trigger quarantine.
 
 ---
 
 ## Security & Integrity
 
-- ed25519 per‑agent keys, rotating nonces.  
+**Implemented now**
+- Local intent sanitization and schema validation hooks at ingress.  
+- Explicit allowlist checks for future tool/command execution paths.  
+- Structured local audit logging to JSONL or SQLite.  
+
+**Planned later**
+- ed25519 per‑agent keys and rotating nonces.  
 - eBPF syscall whitelists per agent.  
 - Hash‑linked audit chains for task logs.  
 - Startup attestation: kernel_hook → LG‑C → LG‑A → Orchestrator → Agents → UI.  
-- Circuit breakers & quarantine zones for misbehavior.
+- Circuit breakers and quarantine zones for misbehavior.
 
 ---
 
