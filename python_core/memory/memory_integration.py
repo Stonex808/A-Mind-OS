@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from refocus_core.logging import setup_logging
+from ..refocus_core.logging import setup_logging
 
 from .episodic import Episode, EpisodicMemory
 from .procedural import ProceduralMemory, Procedure
@@ -62,8 +62,9 @@ class ArtHippoNet:
         )
         return context
 
-    def learn_from_success(self, episode: Episode) -> None:
-        self.episodic.store_episode(episode)
+    def learn_from_success(self, episode: Episode, store_episode: bool = True) -> None:
+        if store_episode and not self.episodic.has_episode(episode.id):
+            self.episodic.store_episode(episode)
 
         if episode.success and len(episode.actions) >= 2:
             procedure_name = f"procedure_from_{episode.id[:8]}" if episode.id else f"procedure_{int(time.time())}"
@@ -113,7 +114,7 @@ class CompleteAgentMemoryInterface:
         )
         episode_id = self.memory.episodic.store_episode(episode)
         if success:
-            self.memory.learn_from_success(episode)
+            self.memory.learn_from_success(episode, store_episode=False)
         return episode_id
 
     def recall_for_situation(self, situation: str) -> Dict[str, Any]:

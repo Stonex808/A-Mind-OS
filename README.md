@@ -121,16 +121,29 @@ and persists to `./data/memory/**` using human-readable JSON so you can audit or
 
 ### Local Dependencies
 
-Install the memory dependencies into your virtual environment:
+The memory stack is **local-first**: Chroma stores vectors on disk, procedures/episodes/concepts are saved as JSON, and no
+telemetry is enabled. To make setup reproducible, create a fresh virtual environment from the repo root and install the exact
+packages you need:
 
 ```bash
-pip install chromadb sentence-transformers
-pip install structlog  # optional, enables structured JSON logs
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install "chromadb==0.5.23" "sentence-transformers==3.4.1"
+python -m pip install "structlog==24.4.0"  # optional structured logging
 ```
 
-These libraries do not phone home when configured as above (`anonymized_telemetry=False`). The first use of
-`SentenceTransformer('all-MiniLM-L6-v2')` will try to download model weights; fetch them once while online, then cache them in
-`~/.cache/torch` for offline reuse or distribute the files across machines as needed.
+Dependency notes:
+
+- `chromadb` provides the local vector index under `./data/memory/**/chroma`.
+- `sentence-transformers` provides the embedding model used by episodic and semantic memory.
+- `structlog` is optional. If it is not installed, the code falls back to Python's standard `logging` module.
+
+Offline/reproducible setup guidance:
+
+1. While online, run a one-time warm-up so `SentenceTransformer("all-MiniLM-L6-v2")` downloads its model weights into the local cache.
+2. Reuse that cache offline by keeping `~/.cache/torch` and `~/.cache/huggingface` available, or pre-seed those directories on the target machine.
+3. If you need fully repeatable workstation setup, export wheels once (`python -m pip download ... -d ./vendor/wheels`) and install later with `python -m pip install --no-index --find-links ./vendor/wheels ...`.
 
 ### Running the Memory Demo
 
@@ -140,9 +153,24 @@ From the repository root:
 python -m python_core.test_complete_memory
 ```
 
-The script exercises episodic storage, semantic fact learning, and procedural extraction. Data is kept locally under
-`./data/memory/` so remember to secure that directory if it contains sensitive material (e.g., encrypt the folder or keep it on
-an encrypted volume).
+### Running Deterministic Memory Tests
+
+The automated tests use temporary local directories and fake in-memory vector/embedding backends so they do **not** require network
+access or downloaded models:
+
+```bash
+pytest python_core/tests/test_memory_stack.py
+```
+
+### Local Data Safety: Backup, Encryption, Retention
+
+All memory data stays under `./data/memory/`. That is convenient for backups, but it also means **anyone with filesystem access can
+read it unless you protect it**. Recommended local-only practices:
+
+- **Backups:** copy `./data/memory/` with standard local tools such as `tar`, `rsync`, or your encrypted backup workflow. Test restores regularly.
+- **Encryption at rest:** prefer a full-disk-encrypted volume or an encrypted container for `./data/memory/` if episodes may contain prompts, observations, or secrets.
+- **Retention:** set a simple deletion policy for old episodes and logs. Human-readable JSON is easy to audit, but it also makes long-term accumulation easy to overlook.
+- **Secret hygiene:** avoid storing tokens, credentials, or raw personal data in task descriptions, observations, tags, or logs. Optional structured logs can also capture context, so keep log levels conservative on shared machines.
 
 ---
 
