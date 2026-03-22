@@ -106,14 +106,14 @@ GRACE redacts PII, enforces TTLs, and manages hot/warm/cold vector tiers for sem
 
 1. Clone or extract this repo.
 2. `scripts/setup.sh` — prepare envs, install deps.
-3. Review and adjust `config/refocus-os.toml` to fit your deployment (system limits, LLM runtime socket path, security toggles). The defaults ship with headless, local-first assumptions—keep secrets out of the file or rotate it into encrypted storage if needed.
+3. Review and adjust `config/refocus-os.toml` to fit your deployment (system limits, LLM runtime socket path, security toggles, and local persistence safeguards). The defaults ship with headless, local-first assumptions—keep secrets out of the file or rotate it into encrypted storage if needed.
 4. `scripts/dev.sh` — run the fully local demo workflow (store one intent, then recall it).
-5. Inspect the generated artifacts under `./data/demo/` and `./data/memory/`.
+5. Inspect the generated artifacts under `./data/demo/` and the default user-memory area under `./data/user/memory/`.
 
 ## Run the local demo
 
 This demo is **offline by default**. It does not call any cloud service, telemetry endpoint, or LLM API.
-It uses a deterministic rules file, repo-local JSON memory, and a repo-local SQLite index so you can inspect or back up every artifact.
+It uses a deterministic rules file, repo-local JSON memory, and a repo-local SQLite index so you can inspect or back up every artifact. Demo artifacts are kept separate from the default user-memory path so the risk boundary is visible by directory.
 
 ### One-command demo
 
@@ -126,9 +126,10 @@ scripts/dev.sh
 The script performs the exact sequence below:
 
 1. Creates `./data/demo/demo-intent.txt` with a plain-text intent beginning with `remember`.
-2. Runs `python3 services/orchestrator/local_demo.py --intent-file ./data/demo/demo-intent.txt` to verify and store the intent locally.
-3. Pipes `recall backup path` into `python3 services/orchestrator/local_demo.py --stdin` to prove deterministic recall through the memory layer.
-4. Leaves all artifacts on disk for inspection.
+2. Routes demo-only memory into `./data/demo/memory/` so it does not mix with the default user-memory path under `./data/user/memory/`.
+3. Runs `python3 services/orchestrator/local_demo.py --intent-file ./data/demo/demo-intent.txt` to verify and store the intent locally.
+4. Pipes `recall backup path` into `python3 services/orchestrator/local_demo.py --stdin` to prove deterministic recall through the memory layer.
+5. Leaves all artifacts on disk for inspection, subject to the configured retention cleanup in `config/refocus-os.toml`.
 
 ### Direct commands
 
@@ -160,26 +161,33 @@ printf 'remember the maintenance window is sunday
 
 ### Local artifacts
 
-- `./data/demo/orchestrator.db` — SQLite index of every demo run.
+- `./data/demo/orchestrator.db` — SQLite index of demo runs only.
 - `./data/demo/runs/*.json` — Full JSON artifact per run, including verifier output and recalled context.
-- `./data/memory/episodic_local/` — Episodic memory JSON files used by the demo.
-- `./data/memory/semantic_local/` — Semantic memory JSON files used by the demo.
-- `./data/memory/procedural/` — Learned procedures extracted from successful demo runs.
+- `./data/demo/memory/episodic_local/` — Demo episodic memory JSON files.
+- `./data/demo/memory/semantic_local/` — Demo semantic memory JSON files.
+- `./data/demo/memory/procedural/` — Demo learned procedures.
+- `./data/user/memory/**` — Default non-demo local memory path for local fallback storage outside the demo script.
 
 ### Verification rules
 
 The verifier rules live in `services/orchestrator/rules/local_rules.json`. The intent is rejected if it is empty, too long, contains banned command patterns, appears to include secrets, or does not include one of the required local-demo verbs: `remember`, `recall`, `store`, or `note`.
 
-### Privacy and backup notes
+### Privacy, retention, and backup notes
 
-All demo artifacts are stored as plain-text JSON or SQLite files on local disk. That keeps the system auditable and easy to back up, but it also means sensitive intents are not encrypted at rest by default. If you plan to store private data, prefer full-disk encryption, encrypted backups, or an encrypted volume for the repository data directory.
+All demo artifacts are stored as plain-text JSON or SQLite files on local disk. That keeps the system auditable and easy to back up, but it also means sensitive intents are not encrypted at rest by default.
+
+- Demo data is intentionally separated into `./data/demo/` and `./data/demo/memory/`, while default local fallback memory lives under `./data/user/memory/`. Keep that split if you copy or sync files so test/demo data does not get mistaken for user data.
+- `config/refocus-os.toml` now exposes retention controls for demo runs (`retention_days`, `max_run_artifacts`) so stale artifacts can be cleaned up automatically without adding any cloud dependency.
+- `config/refocus-os.toml` also exposes `sensitive_content.mode = "off" | "redact" | "refuse"`. `redact` replaces obvious secrets before writing local JSON/SQLite, while `refuse` aborts the write entirely for obvious secrets.
+- For backups, prefer encrypted archives or repository snapshots stored on an encrypted drive. A simple local-first option is to stop services, copy `./data/demo/`, `./data/demo/memory/`, and `./data/user/memory/`, then encrypt that backup with your normal disk or archive tooling.
+- If you need stronger at-rest protection, place `./data/` on an encrypted volume or use full-disk encryption; the app keeps files transparent on purpose and does not hide this trade-off.
 
 ---
 
 ## Python Core (ArtHippoNet Memory)
 
 The `python_core` package implements the ArtHippoNet memory stack (episodic, semantic, and procedural stores). Everything runs locally
-and persists to `./data/memory/**` using human-readable JSON so you can audit or back up data with standard tools.
+and persists to `./data/user/memory/**` by default using human-readable JSON so you can audit or back up data with standard tools. You can repoint those directories in `config/refocus-os.toml` when you need a different local path layout.
 
 ### Local Dependencies
 
@@ -203,8 +211,7 @@ python -m python_core.test_complete_memory
 ```
 
 The script exercises episodic storage, semantic fact learning, and procedural extraction. Data is kept locally under
-`./data/memory/` so remember to secure that directory if it contains sensitive material (e.g., encrypt the folder or keep it on
-an encrypted volume).
+`./data/user/memory/` by default, so remember to secure that directory if it contains sensitive material (for example: encrypt the folder, keep it on an encrypted volume, or back it up into an encrypted archive).
 
 ---
 
