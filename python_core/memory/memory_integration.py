@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 from refocus_core.logging import setup_logging
 
 from .episodic import Episode, EpisodicMemory
-from .procedural import ProceduralMemory, Procedure
+from .procedural import ActionStep, ProceduralMemory, Procedure
 from .semantic import Concept, Fact, SemanticMemory
 
 logger = setup_logging("memory-integration")
@@ -124,6 +124,44 @@ def sanitize_for_local_persistence(value: Any, mode: str) -> Any:
     if isinstance(value, dict):
         return {key: sanitize_for_local_persistence(item, mode) for key, item in value.items()}
     return value
+
+
+def sanitize_procedure_for_local_persistence(procedure: Procedure, mode: str) -> Procedure:
+    sanitized_steps = [
+        {
+            "action": step.action,
+            "parameters": step.parameters,
+            "expected_outcome": step.expected_outcome,
+        }
+        for step in procedure.steps
+    ]
+    sanitized_payload = sanitize_for_local_persistence(
+        {
+            "id": procedure.id,
+            "name": procedure.name,
+            "description": procedure.description,
+            "steps": sanitized_steps,
+            "success_count": procedure.success_count,
+            "failure_count": procedure.failure_count,
+            "avg_execution_time": procedure.avg_execution_time,
+            "preconditions": procedure.preconditions or [],
+            "postconditions": procedure.postconditions or [],
+            "tags": procedure.tags or [],
+        },
+        mode,
+    )
+    return Procedure(
+        id=sanitized_payload["id"],
+        name=sanitized_payload["name"],
+        description=sanitized_payload["description"],
+        steps=[ActionStep(**step) for step in sanitized_payload["steps"]],
+        success_count=sanitized_payload["success_count"],
+        failure_count=sanitized_payload["failure_count"],
+        avg_execution_time=sanitized_payload["avg_execution_time"],
+        preconditions=sanitized_payload["preconditions"],
+        postconditions=sanitized_payload["postconditions"],
+        tags=sanitized_payload["tags"],
+    )
 
 
 class LocalSemanticMemory:
@@ -387,11 +425,22 @@ class ArtHippoNet:
 
         if episode.success and len(episode.actions) >= 2:
             procedure_name = f"procedure_from_{episode.id[:8]}" if episode.id else f"procedure_{int(time.time())}"
-            self.procedural.extract_procedure_from_episode(
-                episode_data={"actions": episode.actions, "tags": episode.tags or []},
+            learned_procedure = Procedure(
+                id=None,
                 name=procedure_name,
                 description=f"Learned from: {episode.task}",
+                steps=[
+                    ActionStep(action=action, parameters={}, expected_outcome="")
+                    for action in episode.actions
+                ],
+                success_count=1,
+                tags=episode.tags or [],
             )
+            sanitized_procedure = sanitize_procedure_for_local_persistence(
+                learned_procedure,
+                self.sensitive_content_mode,
+            )
+            self.procedural.store_procedure(sanitized_procedure)
 
         logger.info("learned_from_episode", extra={"episode_id": episode.id, "agent_id": self.agent_id})
 

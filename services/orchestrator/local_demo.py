@@ -104,6 +104,13 @@ def _resolve_demo_path(raw: str | None, default: Path) -> Path:
     return (REPO_ROOT / candidate).resolve()
 
 
+def _serialize_demo_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def load_demo_persistence_settings() -> DemoPersistenceSettings:
     config = _load_demo_config()
     demo = config.get("demo", {}) if isinstance(config.get("demo", {}), dict) else {}
@@ -216,13 +223,13 @@ class LocalArtifactStore:
                     sanitized_payload["action"],
                     1 if sanitized_payload["accepted"] else 0,
                     json.dumps(sanitized_payload["reasons"]),
-                    str(artifact_path.relative_to(REPO_ROOT)),
+                    _serialize_demo_path(artifact_path),
                 ),
             )
             conn.commit()
-        sanitized_payload["artifact_path"] = str(artifact_path.relative_to(REPO_ROOT))
+        sanitized_payload["artifact_path"] = _serialize_demo_path(artifact_path)
         sanitized_payload["persistence"] = {
-            "data_dir": str(self.data_dir.relative_to(REPO_ROOT)),
+            "data_dir": _serialize_demo_path(self.data_dir),
             "max_run_artifacts": self.settings.max_run_artifacts,
             "retention_days": self.settings.retention_days,
             "sensitive_content_mode": self.settings.sensitive_content_mode,
@@ -269,7 +276,7 @@ class LocalOrchestratorDemo:
                 "persisted": False,
                 "memory_recall": {"status": "skipped_for_privacy"},
                 "persistence": {
-                    "data_dir": str(self.settings.data_dir.relative_to(REPO_ROOT)),
+                    "data_dir": _serialize_demo_path(self.settings.data_dir),
                     "sensitive_content_mode": self.settings.sensitive_content_mode,
                 },
             }
