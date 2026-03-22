@@ -1,174 +1,187 @@
 # Refocus-OS
 
 **Vision**  
-An AI-first, agent-centric operating system layer built on a custom Debian base. Refocus-OS reimagines the user-computer relationship, transforming the OS from a passive tool manager into a proactive, reasoning co-pilot secured by an adaptive AI defense system. It operates primarily headless, context-aware, and hardened against intelligent threats.
+Refocus-OS is a research repository for an AI-first, agent-centric operating system layer built around a custom Debian base. Today, this repository is primarily a design/specification repo with one local Python memory subsystem you can run and inspect offline. The full orchestrated OS, security pipeline, message bus, and desktop UI described below are not wired into a working end-to-end platform yet.
+
+---
+
+## Current State
+
+What is actually implemented in this repository today:
+
+- **Architecture and subsystem specs** for the intended operating-system design live in `ARCHITECTURE.md`, `services/**/agents.md`, `ops/ipc/agents.md`, `memory/grace/agents.md`, and the systemd unit files.
+- **A runnable local Python memory package** lives in `python_core/` and implements episodic, semantic, and procedural memory primitives through the `ArtHippoNet` interface.
+- **Local persistence** for the Python memory stack is implemented using JSON files under `./data/memory/**`, plus local Chroma persistence when its dependency is installed.
+- **A demo/test entry point** exists at `python_core/test_complete_memory.py` to exercise the current memory stack locally.
+- **Bootstrap/dev helper scripts** exist in `scripts/`, but `scripts/dev.sh` is a placeholder runner that prints the intended startup sequence rather than launching a complete platform.
+- **Configuration scaffolding** exists in `config/` for future orchestrator, model runtime, and security settings.
+
+If you are evaluating this repo for trustworthiness, the safest summary is: **the memory subsystem is the main runnable implementation; most other areas are blueprints, contracts, or boot-time scaffolding.**
+
+---
+
+## What is still a blueprint
+
+The following parts are described in the repository but are **not** implemented here as a complete, integrated system yet:
+
+- **Orchestrator:** planning, intent fusion, scheduling, agent coordination, and economist-style resource management are documented, but there is no working orchestrator service implementation in `services/orchestrator/` yet.
+- **IPC / message bus:** signed envelopes, schema-validated bus traffic, and GRACE-backed semantic routing are specified in `ops/ipc/`, but there is no production-ready Unix-socket bus implementation in this repo.
+- **Security layers:** LangSec, CodeSec, SysSec, and kernel-hook components are documented under `services/security/` and represented in `systemd/units/`, but the repository currently provides specifications rather than an operational defense stack.
+- **UI / end-user shell:** the HUD, AI Terminal, hotkeys, and voice-control workflow are described under `ui/shell/`, but there is no shipped Tauri/React application in this repository yet.
+
+Because of that, references to hotkeys, silent background agents, secure startup chains, or verified end-to-end request handling should be read as **target architecture**, not as behavior you can expect from the repository today.
 
 ---
 
 ## Core Principles
 
 ### Agent-Centric Architecture
-Every system capability is implemented as an autonomous agent with a defined contract and schema. Agents communicate and coordinate through the Orchestrator, negotiating for resources and executing tasks silently under constant supervision by the security layer.
+The planned system treats each capability as an autonomous agent with a defined contract and schema. The intended design has agents coordinate through an orchestrator and operate under security supervision.
 
 ### Long-Context, Low-Compute
-The foundation model uses **Native Hybrid Attention (NHA)** to sustain vast, persistent context at near-linear computational cost, enabling session-long coherence without performance degradation.
+The architecture targets long-context inference techniques such as **Native Hybrid Attention (NHA)** to support persistent context efficiently.
 
 ### Single-Model, Multi-Role Delegation
-A single optimized foundation model performs multiple roles (Planner, WebAgent, Verifier, etc.) through specialized prompts and toolsets, coordinated by **Multi-Agent Tool-Integrated Policy Optimization (MATPO)**.
+The design proposes using a single foundation model for multiple roles (Planner, WebAgent, Verifier, etc.) through specialized prompts and toolsets.
 
 ### Secure by Design
-The **Adaptive Integrity Shield** protects the system through three coordinated defense layers: **LangSec** for prompt sanitization, **CodeSec** for code verification, and **SysSec** for system call anomaly detection.
+The target platform includes an **Adaptive Integrity Shield** with **LangSec**, **CodeSec**, and **SysSec** layers.
 
 ### Quiet, Headless Operation
-Agents run as silent background services with minimal visual noise. User interaction occurs via voice or global hotkeys, with the **AI Terminal** and **HUD** providing real-time visibility into active intents and resource budgets.
+The intended user experience is headless-first with lightweight visibility through a HUD and terminal-style controls.
 
 ### Verifiable and Self-Improving
-All actions are verifiable through deterministic logs, signed envelopes, and idempotent replay data. A **reflection daemon** learns from operational and security logs to refine internal policies continuously without retraining the core model.
-
-**Current Status:** Blueprint and boot specification phase. This repository defines the architectural plan, agent directives, and subsystem contracts necessary for multi-agent implementation.
-
-> Pro Tip: Press **Alt + Enter** to auto-capture the current selection as an intent and send it to the Orchestrator—no manual steps.
+The roadmap includes deterministic logs, signed envelopes, replay data, and reflection loops for policy refinement.
 
 ---
 
-## System Architecture (Bird’s‑Eye)
+## System Architecture (Planned)
 
-See **ARCHITECTURE.md** for deep detail. High level summary:
+See **ARCHITECTURE.md** for the fuller design document. At a high level, the repository proposes:
 
-- **Layer 0 – Hardware & Kernel:** Debian base + Linux kernel + eBPF instrumentation for attention kernels, syscall monitors, integrity verifiers.  
-- **Layer 1 – Model Runtime:** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
-- **Layer 2 – Hydra Defense System:** Adaptive Integrity Shield (LangSec / CodeSec / SysSec) auditing prompts, code, and syscalls.  
-- **Layer 3 – IPC Message Bus:** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit.  
-- **Layer 4 – Orchestrator & Services:** Intent fusion, MATPO planner, Compute Economist, contract registry.  
-- **Layer 5 – Specialist Agents:** Sandboxed workers bound by per‑agent contracts & whitelists.  
-- **Layer 6 – UI Layer:** Tauri/React HUD + AI Terminal, global hotkeys, voice controls.
+- **Layer 0 – Hardware & Kernel:** Debian base + Linux kernel + eBPF instrumentation.
+- **Layer 1 – Model Runtime:** local inference server with quantization, adapters, and batching.
+- **Layer 2 – Hydra Defense System:** LangSec / CodeSec / SysSec.
+- **Layer 3 – IPC Message Bus:** Unix-socket bus with signed envelopes and validation.
+- **Layer 4 – Orchestrator & Services:** planning, budgeting, routing, and service registry.
+- **Layer 5 – Specialist Agents:** sandboxed workers with explicit contracts.
+- **Layer 6 – UI Layer:** HUD, AI Terminal, hotkeys, and voice controls.
 
----
-
-## Subsystems & Folders
-
-- **services/orchestrator/** – Central reasoning & scheduling hub. See `services/orchestrator/agents.md`.
-- **services/security/** – Hydra Defense (LG‑A LangSec, LG‑B CodeSec, LG‑C SysSec, Kernel Hook). Per‑folder `agents.md` files.
-- **services/agents/** – Specialist workers (example: `verifier_trm`). Contracted via `/config/contracts`. See each `agents.md`.
-- **ops/ipc/** – Message Bus & Envelope schema; GRACE semantic spine. See `ops/ipc/agents.md`.
-- **memory/grace/** – Embeddings, retrieval, audit logging, reflection plumbing. See `memory/grace/agents.md`.
-- **ui/shell/** – Tauri/React HUD & AI Terminal bindings. See `ui/shell/agents.md`.
-- **config/** – `economist.yaml` budgets, agent contracts, policy knobs.
-- **systemd/units/** – Boot targets and unit templates.
-- **scripts/** – Setup/dev helpers.
-
-### Boot Targets (systemd)
-- `refocus-pre.target` → `kernel_hook.service`, `lg_c_syssec.service`  
-- `refocus-core.target` → `lg_a_langsec.service`, `orchestrator.service`  
-- `refocus-agents.target` → `verifier_trm.service`, workers  
-- `refocus-ui.target` → HUD
-
-Sequential secure startup enforced via unit dependencies.
+This section describes the **planned stack**, not a fully working implementation currently available in the repo.
 
 ---
 
-## Example Logic Flow: Secure User Request
+## Repository Layout
 
-1. **Intent Capture:** User selects code and presses **Alt+Enter**.  
-2. **Sanitization:** LG‑A screens for injection.  
-3. **Fusion:** Orchestrator IFN fuses sanitized intent with context.  
-4. **Planning:** MATPO builds a task DAG.  
-5. **Execution:** Authenticated envelopes sent to agents via Bus.  
-6. **Monitoring:** eBPF stream scored by LG‑C.  
-7. **Verification:** TRM + CodeSec validate outputs.  
-8. **Output:** HUD shows verified result; anomalies trigger quarantine.
-
----
-
-## Security & Integrity
-
-- ed25519 per‑agent keys, rotating nonces.  
-- eBPF syscall whitelists per agent.  
-- Hash‑linked audit chains for task logs.  
-- Startup attestation: kernel_hook → LG‑C → LG‑A → Orchestrator → Agents → UI.  
-- Circuit breakers & quarantine zones for misbehavior.
+- **services/orchestrator/** – Orchestrator design notes and agent instructions.
+- **services/security/** – Security-layer design notes for LangSec, CodeSec, SysSec, and kernel hooks.
+- **services/agents/** – Specialist-agent documentation such as `verifier_trm`.
+- **ops/ipc/** – Message-bus and envelope design notes.
+- **memory/grace/** – GRACE memory/audit architecture notes.
+- **python_core/** – The main currently runnable code: ArtHippoNet memory components and demo script.
+- **ui/shell/** – UI/HUD design notes.
+- **config/** – TOML/YAML configuration scaffolding.
+- **systemd/units/** – Unit and target definitions for the intended boot graph.
+- **scripts/** – Local helper scripts; setup is real, dev runner is currently illustrative.
 
 ---
 
-## Observability
+## Quickstart for the runnable local pieces
 
-Track latency percentiles, token burn, anomaly rates, memory use, verifier pass rates. HUD exposes **Max Tokens**, **Max Time**, **Max Depth**, and **Kill All Workers**.
+This quickstart only covers the parts that are currently runnable from this repository.
 
----
+### 1) Check local tool availability
 
-## Data Hygiene
+```bash
+./scripts/setup.sh
+```
 
-GRACE redacts PII, enforces TTLs, and manages hot/warm/cold vector tiers for semantic logs.
+What this does today:
+- confirms whether `python3` is installed;
+- reports optional `node` and `cargo` availability;
+- does **not** install or launch the full platform.
 
----
+### 2) Install the Python memory dependencies
 
-## Getting Started (Scaffold)
-
-1. Clone or extract this repo.
-2. `scripts/setup.sh` — prepare envs, install deps.
-3. Review and adjust `config/refocus-os.toml` to fit your deployment (system limits, LLM runtime socket path, security toggles). The defaults ship with headless, local-first assumptions—keep secrets out of the file or rotate it into encrypted storage if needed.
-4. `scripts/dev.sh` — run local services (orchestrator, security, HUD).
-5. Open the HUD and press **Alt+Enter** to test the intent loop.
-
-> Pro Tip: On supported editors, **Alt+Enter** auto-initiates the demo workflow end-to-end.
-
----
-
-## Python Core (ArtHippoNet Memory)
-
-The `python_core` package implements the ArtHippoNet memory stack (episodic, semantic, and procedural stores). Everything runs locally
-and persists to `./data/memory/**` using human-readable JSON so you can audit or back up data with standard tools.
-
-### Local Dependencies
-
-Install the memory dependencies into your virtual environment:
+Create a local virtual environment if you want isolation, then install the packages used by the memory demo:
 
 ```bash
 pip install chromadb sentence-transformers
-pip install structlog  # optional, enables structured JSON logs
+pip install structlog  # optional, enables structured logs
 ```
 
-These libraries do not phone home when configured as above (`anonymized_telemetry=False`). The first use of
-`SentenceTransformer('all-MiniLM-L6-v2')` will try to download model weights; fetch them once while online, then cache them in
-`~/.cache/torch` for offline reuse or distribute the files across machines as needed.
+Privacy/security notes:
+- The code configures Chroma with `anonymized_telemetry=False`, so it is intended to stay local-first.
+- `SentenceTransformer('all-MiniLM-L6-v2')` may download model weights the first time you run it. Cache those files locally for later offline reuse.
+- Data written under `./data/memory/` is plain local storage. Back it up like normal application data, and encrypt the host volume if the stored memories are sensitive.
 
-### Running the Memory Demo
-
-From the repository root:
+### 3) Run the local memory demo
 
 ```bash
 python -m python_core.test_complete_memory
 ```
 
-The script exercises episodic storage, semantic fact learning, and procedural extraction. Data is kept locally under
-`./data/memory/` so remember to secure that directory if it contains sensitive material (e.g., encrypt the folder or keep it on
-an encrypted volume).
+This exercises the implemented memory stack:
+- episodic storage;
+- semantic fact learning;
+- procedural extraction;
+- integrated recall;
+- local statistics reporting.
+
+### 4) Optional: inspect the placeholder dev script
+
+```bash
+./scripts/dev.sh
+```
+
+This currently prints the intended service startup order. It is useful for understanding the target boot flow, but it does **not** start a working orchestrator/security/UI stack.
+
+---
+
+## Boot Targets (planned systemd graph)
+
+The repository includes unit files that describe the intended boot order:
+
+- `refocus-pre.target` → `kernel_hook.service`, `lg_c_syssec.service`
+- `refocus-core.target` → `lg_a_langsec.service`, `orchestrator.service`
+- `refocus-agents.target` → `verifier_trm.service`, workers
+- `refocus-ui.target` → HUD
+
+These units are useful as architecture scaffolding, but they should not be read as proof that those services are fully implemented in this repository.
 
 ---
 
 ## Development Workflow
 
-- **Contracts First:** Define/validate JSON contracts in `/config/contracts`.  
-- **Agent Stubs:** Implement sockets + health endpoints, then register with Orchestrator.  
-- **Policy Tuning:** Adjust `config/economist.yaml` budgets.  
-- **Security Gates:** All PRs run LangSec/CodeSec checks and unit tests for envelope schema.
+- **Contracts first:** define and review JSON contracts in `config/contracts/`.
+- **Memory implementation:** extend the runnable Python memory modules in `python_core/`.
+- **Architecture work:** use the service, IPC, and UI directories to evolve specs into concrete implementations.
+- **Security hygiene:** keep data local, avoid checking secrets into config files, and treat `./data/memory/` as sensitive if it stores real user material.
 
 ---
 
-## Roadmap (Milestones)
+## Roadmap
 
-- M1: IPC bus + signed envelope schema + GRACE MVP  
-- M2: Orchestrator IFN + MATPO planner + economist budgets  
-- M3: Hydra Defense (LG‑A/B/C) + kernel hook + kill‑switch  
-- M4: Tauri HUD + AI Terminal bindings + hotkeys  
-- M5: Reflection daemon + self‑tuning policies
+| Milestone | Scope | Concrete repo locations |
+| --- | --- | --- |
+| M1 | Stabilize the current local memory subsystem and persistence model | `python_core/memory/`, `python_core/test_complete_memory.py`, `config/` |
+| M2 | Turn IPC/bus specifications into a minimal working local message bus | `ops/ipc/`, `config/contracts/` |
+| M3 | Implement an actual orchestrator service around the existing contracts | `services/orchestrator/`, `systemd/units/orchestrator.service` |
+| M4 | Convert security-layer specs into runnable local services and enforcement hooks | `services/security/`, `systemd/units/lg_a_langsec.service`, `systemd/units/lg_c_syssec.service`, `systemd/units/kernel_hook.service` |
+| M5 | Ship a visible local UI/HUD tied to the implemented services | `ui/shell/`, `systemd/units/hud.service` |
 
 ---
 
 ## Contributing
 
-PRs welcome. Keep changes modular, contracts versioned (semver), and wire-once through the Bus.
+PRs are welcome. The most helpful contributions right now are the ones that:
+
+- tighten the README and architecture docs so implemented vs planned work is obvious;
+- add tests or packaging around `python_core/`;
+- turn one blueprint area at a time into a small, local-first implementation.
+
+---
 
 ## License
 
-Apache-2.0 (provisional; change as needed).
+Apache-2.0 (provisional; update as needed).
