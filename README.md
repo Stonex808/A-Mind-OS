@@ -11,7 +11,7 @@ What is actually implemented in this repository today:
 
 - **Architecture and subsystem specs** for the intended operating-system design live in `ARCHITECTURE.md`, `services/**/agents.md`, `ops/ipc/agents.md`, `memory/grace/agents.md`, and the systemd unit files.
 - **A runnable local Python memory package** lives in `python_core/` and implements episodic, semantic, and procedural memory primitives through the `ArtHippoNet` interface.
-- **Local persistence** for the Python memory stack is implemented using JSON files under `./data/memory/**`, plus local Chroma persistence when its dependency is installed.
+- **Local persistence** for the Python memory stack is implemented using JSON files under `./data/memory/**`. The memory modules also configure Chroma with a `persist_directory`, but they still instantiate `chromadb.Client(...)` rather than `chromadb.PersistentClient(...)`, so vector-index durability across restarts should be treated as not yet verified with current Chroma releases.
 - **A demo/test entry point** exists at `python_core/test_complete_memory.py` to exercise the current memory stack locally.
 - **Bootstrap/dev helper scripts** exist in `scripts/`, but `scripts/dev.sh` is a placeholder runner that prints the intended startup sequence rather than launching a complete platform.
 - **Configuration scaffolding** exists in `config/` for future orchestrator, model runtime, and security settings.
