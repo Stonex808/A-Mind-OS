@@ -31,6 +31,10 @@ A Tauri/React HUD and Terminal provide minimal graphical surfaces for interactin
 ### Orchestrator (`services/orchestrator/`)
 **Purpose:** Planned central reasoning and coordination hub.  
 **Components:**
+- **Intent Fusion Network (IFN):** Weighted vector fusion of sanitized user/system intents.
+- **Planner/Worker Scheduler:** MATPO for task DAG generation and assignment.
+- **Compute Economist:** Budgets from `economist.yaml` to optimize token/time.
+- **Contract Registry:** Loads & validates semver JSON contracts from `/etc/refocus/contracts` or the developer mirror in `config/contracts/`, beginning with `config/contracts/envelope.v1.schema.json` and the concrete service contracts `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.
 - **Implemented now:** local intent ingress validation/sanitization hooks live in `python_core/refocus_core/intent_security.py` and can be wired into an eventual orchestrator endpoint.
 - **Planned later — Intent Fusion Network (IFN):** weighted vector fusion of sanitized user/system intents.
 - **Planned later — Planner/Worker Scheduler:** MATPO for task DAG generation and assignment.
@@ -49,7 +53,7 @@ A Tauri/React HUD and Terminal provide minimal graphical surfaces for interactin
 ### Message Bus & Semantic Spine (`ops/ipc/`)
 **Purpose:** Communication backbone + memory reference.  
 **Components:**
-- **Envelope Schema:** ID, timestamps, src/dst, verb, payload, signature, budget.
+- **Envelope Schema:** `config/contracts/envelope.v1.schema.json` defines ID, timestamps, src/dst, verb, payload, signature, budget, and `schema_version`. Dispatch-specific constraints live in `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.
 - **GRACE Service:** Embedding index for intents, logs, rationale.
 
 ### Specialist Agents (`services/agents/`)

@@ -35,6 +35,10 @@ Agents run as silent background services with minimal visual noise. User interac
 
 See **ARCHITECTURE.md** for deep detail. High level summary:
 
+- **Layer 0 – Hardware & Kernel:** Debian base + Linux kernel + eBPF instrumentation for attention kernels, syscall monitors, integrity verifiers.  
+- **Layer 1 – Model Runtime:** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
+- **Layer 2 – Hydra Defense System:** Adaptive Integrity Shield (LangSec / CodeSec / SysSec) auditing prompts, code, and syscalls.  
+- **Layer 3 – IPC Message Bus:** Unix‑socket bus with schema‑validated, signed envelopes; GRACE embeddings for retrieval/audit. Start with `config/contracts/envelope.v1.schema.json`, then service-specific contracts such as `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.  
 - **Layer 0 – Hardware & Kernel (planned):** Debian base + Linux kernel + prospective eBPF instrumentation for attention kernels, syscall monitors, and integrity verifiers.  
 - **Layer 1 – Model Runtime (planned):** High‑efficiency inference server (vLLM or llama.cpp) with NHA, quantization, LoRA loading, and batch scheduling.  
 - **Layer 2 – Hydra Defense System (partially planned):** today the repo includes local intent sanitization/schema validation and local audit/allowlist hooks; dedicated LangSec / CodeSec / SysSec services remain planned.  
@@ -194,6 +198,9 @@ telemetry is enabled. To make setup reproducible, create a fresh virtual environ
 packages you need:
 
 ```bash
+pip install chromadb sentence-transformers
+pip install structlog  # optional, enables structured JSON logs
+pip install jsonschema  # required for local contract validation
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -279,7 +286,7 @@ Screenshot capture is pending in this environment because the required browser s
 
 ## Development Workflow
 
-- **Contracts First:** Define/validate JSON contracts in `/config/contracts`.  
+- **Contracts First:** Define/validate JSON contracts in `/config/contracts`, especially `config/contracts/envelope.v1.schema.json`, `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`. Validate local fixtures from `config/contracts/examples/` before wiring new services.  
 - **Agent Stubs:** Implement sockets + health endpoints, then register with Orchestrator.  
 - **Policy Tuning:** Adjust `config/economist.yaml` budgets.  
 - **Security Gates:** All PRs run LangSec/CodeSec checks and unit tests for envelope schema.
@@ -298,7 +305,7 @@ Screenshot capture is pending in this environment because the required browser s
 
 ## Contributing
 
-PRs welcome. Keep changes modular, contracts versioned (semver), and wire-once through the Bus.
+PRs welcome. Keep changes modular, contracts versioned (semver), and wire-once through the Bus. Contributors should update the local contract set in `config/contracts/envelope.v1.schema.json`, `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json` before adding new services.
 
 ## License
 

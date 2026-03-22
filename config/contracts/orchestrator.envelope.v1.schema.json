@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refocus-os.local/contracts/orchestrator.envelope.v1.schema.json",
+  "title": "Orchestrator Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "timestamp", "src", "dst", "verb", "payload", "budget", "signature", "schema_version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "src": {"type": "string", "pattern": "^[a-z0-9_.-]+$"},
+    "dst": {"type": "string", "const": "orchestrator"},
+    "verb": {"type": "string", "enum": ["plan.create", "task.dispatch", "intent.capture"]},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent", "requested_by", "task_refs", "constraints"],
+      "properties": {
+        "intent": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "requested_by": {"type": "string", "minLength": 1},
+        "task_refs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "maxItems": 32
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allow_network", "require_verifier"],
+          "properties": {
+            "allow_network": {"type": "boolean"},
+            "require_verifier": {"type": "boolean"},
+            "sensitive_fields": {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1},
+              "maxItems": 32
+            }
+          }
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_tokens", "max_ms", "priority"],
+      "properties": {
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "max_ms": {"type": "integer", "minimum": 1},
+        "priority": {"type": "string", "enum": ["low", "normal", "high", "critical"]},
+        "max_depth": {"type": "integer", "minimum": 1},
+        "cost_center": {"type": "string", "minLength": 1}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"type": "string", "const": "ed25519"},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 32}
+      }
+    },
+    "schema_version": {"type": "string", "const": "1.0.0"}
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "env-verify-001",
+  "timestamp": "not-a-timestamp",
+  "src": "orchestrator",
+  "dst": "verifier_trm",
+  "verb": "verify.output",
+  "payload": {
+    "artifact_ref": "",
+    "artifact_type": "binary",
+    "checks": [],
+    "hash": "1234"
+  },
+  "budget": {
+    "max_tokens": 800,
+    "max_ms": 2500,
+    "priority": "normal"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "orchestrator-key",
+    "value": "tiny"
+  },
+  "schema_version": "1.0.0"
+}
