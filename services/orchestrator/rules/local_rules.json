@@ -1,0 +1,18 @@
+{
+  "max_intent_length": 280,
+  "required_keywords": ["remember", "recall", "store", "note"],
+  "forbidden_patterns": [
+    "rm -rf",
+    "curl | sh",
+    "http://",
+    "https://",
+    "<script",
+    "DROP TABLE"
+  ],
+  "secret_patterns": [
+    "api_key",
+    "password",
+    "secret",
+    "token"
+  ]
+}

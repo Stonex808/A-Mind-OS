@@ -107,10 +107,72 @@ GRACE redacts PII, enforces TTLs, and manages hot/warm/cold vector tiers for sem
 1. Clone or extract this repo.
 2. `scripts/setup.sh` — prepare envs, install deps.
 3. Review and adjust `config/refocus-os.toml` to fit your deployment (system limits, LLM runtime socket path, security toggles). The defaults ship with headless, local-first assumptions—keep secrets out of the file or rotate it into encrypted storage if needed.
-4. `scripts/dev.sh` — run local services (orchestrator, security, HUD).
-5. Open the HUD and press **Alt+Enter** to test the intent loop.
+4. `scripts/dev.sh` — run the fully local demo workflow (store one intent, then recall it).
+5. Inspect the generated artifacts under `./data/demo/` and `./data/memory/`.
 
-> Pro Tip: On supported editors, **Alt+Enter** auto-initiates the demo workflow end-to-end.
+## Run the local demo
+
+This demo is **offline by default**. It does not call any cloud service, telemetry endpoint, or LLM API.
+It uses a deterministic rules file, repo-local JSON memory, and a repo-local SQLite index so you can inspect or back up every artifact.
+
+### One-command demo
+
+From the repository root:
+
+```bash
+scripts/dev.sh
+```
+
+The script performs the exact sequence below:
+
+1. Creates `./data/demo/demo-intent.txt` with a plain-text intent beginning with `remember`.
+2. Runs `python3 services/orchestrator/local_demo.py --intent-file ./data/demo/demo-intent.txt` to verify and store the intent locally.
+3. Pipes `recall backup path` into `python3 services/orchestrator/local_demo.py --stdin` to prove deterministic recall through the memory layer.
+4. Leaves all artifacts on disk for inspection.
+
+### Direct commands
+
+Store from a local file:
+
+```bash
+python3 services/orchestrator/local_demo.py --intent-file ./data/demo/demo-intent.txt
+```
+
+Store or recall from stdin:
+
+```bash
+printf 'recall backup path
+' | python3 services/orchestrator/local_demo.py --stdin
+```
+
+Serve a simple local Unix socket:
+
+```bash
+python3 services/orchestrator/local_demo.py --socket
+```
+
+When socket mode is active, send a single line intent from another shell:
+
+```bash
+printf 'remember the maintenance window is sunday
+' | socat - UNIX-CONNECT:./data/demo/orchestrator.sock
+```
+
+### Local artifacts
+
+- `./data/demo/orchestrator.db` — SQLite index of every demo run.
+- `./data/demo/runs/*.json` — Full JSON artifact per run, including verifier output and recalled context.
+- `./data/memory/episodic_local/` — Episodic memory JSON files used by the demo.
+- `./data/memory/semantic_local/` — Semantic memory JSON files used by the demo.
+- `./data/memory/procedural/` — Learned procedures extracted from successful demo runs.
+
+### Verification rules
+
+The verifier rules live in `services/orchestrator/rules/local_rules.json`. The intent is rejected if it is empty, too long, contains banned command patterns, appears to include secrets, or does not include one of the required local-demo verbs: `remember`, `recall`, `store`, or `note`.
+
+### Privacy and backup notes
+
+All demo artifacts are stored as plain-text JSON or SQLite files on local disk. That keeps the system auditable and easy to back up, but it also means sensitive intents are not encrypted at rest by default. If you plan to store private data, prefer full-disk encryption, encrypted backups, or an encrypted volume for the repository data directory.
 
 ---
 
