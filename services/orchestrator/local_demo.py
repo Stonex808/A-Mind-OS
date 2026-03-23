@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from contract_registry import ContractRegistry
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_CORE = REPO_ROOT / "python_core"
 if str(PYTHON_CORE) not in sys.path:
@@ -21,6 +23,7 @@ if str(PYTHON_CORE) not in sys.path:
 from memory.memory_integration import CompleteAgentMemoryInterface  # noqa: E402
 
 DATA_DIR = REPO_ROOT / "data" / "demo"
+MEMORY_DIR = REPO_ROOT / "data" / "memory"
 RULES_PATH = Path(__file__).resolve().parent / "rules" / "local_rules.json"
 DEFAULT_SOCKET_PATH = DATA_DIR / "orchestrator.sock"
 INTENT_RE = re.compile(r"\s+")
@@ -136,13 +139,20 @@ class LocalArtifactStore:
 
 class LocalOrchestratorDemo:
     def __init__(self, data_dir: Path = DATA_DIR, rules_path: Path = RULES_PATH) -> None:
-        self.memory = CompleteAgentMemoryInterface("local_demo_orchestrator", prefer_local_fallback=True)
+        self.memory = CompleteAgentMemoryInterface(
+            "local_demo_orchestrator",
+            prefer_local_fallback=True,
+            memory_root=MEMORY_DIR,
+        )
         self.verifier = LocalVerifier(rules_path)
         self.artifacts = LocalArtifactStore(data_dir)
+        self.contract_registry = ContractRegistry()
+        self.registerable_agents = self.contract_registry.contracts_for_registration()
         self._seed_local_context()
 
     def _seed_local_context(self) -> None:
         self.memory.learn_fact("orchestrator", "stores", "intent history in local sqlite")
+        self.memory.learn_fact("orchestrator", "registers_agents_from", ", ".join(sorted(self.registerable_agents)))
         self.memory.learn_fact("memory", "persists", "context in repo-local json")
         self.memory.define_concept(
             "local demo",

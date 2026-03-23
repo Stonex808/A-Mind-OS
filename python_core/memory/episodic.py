@@ -84,6 +84,13 @@ class EpisodicMemory:
 
         logger.info("episodic_memory_initialized", persist_directory=str(self.persist_dir))
 
+    def has_episode(self, episode_id: Optional[str]) -> bool:
+        """Return ``True`` when the episode payload already exists on disk."""
+
+        if not episode_id:
+            return False
+        return (self.episodes_store / f"{episode_id}.json").exists()
+
     def store_episode(self, episode: Episode) -> str:
         """Persist an episode and its embedding."""
 

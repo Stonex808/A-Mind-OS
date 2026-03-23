@@ -48,6 +48,7 @@ cat <<'EOT'
 Optional dependencies are not required for the default offline demo path:
 - chromadb + sentence-transformers: enable vector-backed episodic/semantic memory instead of the built-in JSON fallback.
 - structlog: enables structured JSON logging for Python components.
+- jsonschema: required if you want to run contract schema validation or the contract validator tests.
 - node, cargo/rust: only needed for future UI/Tauri work, not for the current demo.
 - socat: only needed if you want to manually test --socket mode from another shell.
 EOT
@@ -66,6 +67,12 @@ mkdir -p \
   "$ROOT_DIR/data/memory/episodic_local/episodes" \
   "$ROOT_DIR/data/memory/semantic_local" \
   "$ROOT_DIR/data/memory/procedural"
+  "$ROOT_DIR/data/demo/memory/episodic_local/episodes" \
+  "$ROOT_DIR/data/demo/memory/semantic_local" \
+  "$ROOT_DIR/data/demo/memory/procedural" \
+  "$ROOT_DIR/data/user/memory/episodic_local/episodes" \
+  "$ROOT_DIR/data/user/memory/semantic_local" \
+  "$ROOT_DIR/data/user/memory/procedural"
 
 cat <<EOT
 Created or verified these local-only directories:
@@ -74,11 +81,18 @@ Created or verified these local-only directories:
 - $ROOT_DIR/data/memory/episodic_local/episodes/
 - $ROOT_DIR/data/memory/semantic_local/
 - $ROOT_DIR/data/memory/procedural/
+- $ROOT_DIR/data/demo/memory/episodic_local/episodes/
+- $ROOT_DIR/data/demo/memory/semantic_local/
+- $ROOT_DIR/data/demo/memory/procedural/
+- $ROOT_DIR/data/user/memory/episodic_local/episodes/
+- $ROOT_DIR/data/user/memory/semantic_local/
+- $ROOT_DIR/data/user/memory/procedural/
 EOT
 
 print_section "Next step"
 cat <<'EOT'
 Run one of these from the repository root:
 - scripts/dev.sh              # end-to-end local demo with stored + recalled intent
+- scripts/dev.sh               # end-to-end local demo with stored + recalled intent
 - scripts/verify-local-demo.sh # offline verification wrapper with artifact checks
 EOT

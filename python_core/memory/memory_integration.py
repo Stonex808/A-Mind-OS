@@ -10,6 +10,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+MEMORY_ROOT = Path(__file__).resolve().parents[2] / "data" / "memory"
+
 from refocus_core.logging import setup_logging
 
 from .episodic import Episode, EpisodicMemory
@@ -24,8 +26,8 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 class LocalSemanticMemory:
     """JSON-backed semantic fallback that avoids optional vector dependencies."""
 
-    def __init__(self, persist_directory: str = "./data/memory/semantic_local") -> None:
-        self.persist_dir = Path(persist_directory)
+    def __init__(self, persist_directory: str | Path | None = None) -> None:
+        self.persist_dir = Path(persist_directory) if persist_directory is not None else MEMORY_ROOT / "semantic_local"
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.facts_path = self.persist_dir / "facts.json"
         self.concepts_path = self.persist_dir / "concepts.json"
@@ -125,8 +127,8 @@ class LocalSemanticMemory:
 class LocalEpisodicMemory:
     """JSON-backed episodic fallback that uses token overlap for recall."""
 
-    def __init__(self, persist_directory: str = "./data/memory/episodic_local") -> None:
-        self.persist_dir = Path(persist_directory)
+    def __init__(self, persist_directory: str | Path | None = None) -> None:
+        self.persist_dir = Path(persist_directory) if persist_directory is not None else MEMORY_ROOT / "episodic_local"
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.episodes_store = self.persist_dir / "episodes"
         self.episodes_store.mkdir(parents=True, exist_ok=True)
@@ -184,10 +186,11 @@ class LocalEpisodicMemory:
 class ArtHippoNet:
     """Complete memory system combining episodic, semantic, and procedural stores."""
 
-    def __init__(self, agent_id: str, prefer_local_fallback: bool = False) -> None:
+    def __init__(self, agent_id: str, prefer_local_fallback: bool = False, memory_root: str | Path | None = None) -> None:
         self.agent_id = agent_id
+        self.memory_root = Path(memory_root) if memory_root is not None else MEMORY_ROOT
         self.episodic, self.semantic = self._build_memory_backends(prefer_local_fallback=prefer_local_fallback)
-        self.procedural = ProceduralMemory()
+        self.procedural = ProceduralMemory(self.memory_root / "procedural")
         logger.info("arthipponet_initialized", extra={"agent_id": agent_id})
 
     def _build_memory_backends(self, prefer_local_fallback: bool = False) -> tuple[Any, Any]:
@@ -199,7 +202,7 @@ class ArtHippoNet:
                     "vector_memory_unavailable_using_local_fallback",
                     extra={"reason": str(exc), "agent_id": self.agent_id},
                 )
-        return LocalEpisodicMemory(), LocalSemanticMemory()
+        return LocalEpisodicMemory(self.memory_root / "episodic_local"), LocalSemanticMemory(self.memory_root / "semantic_local")
 
     def integrated_recall(self, situation: str) -> Dict[str, Any]:
         logger.info("integrated_recall_start", extra={"agent_id": self.agent_id, "situation": situation[:50]})
@@ -263,9 +266,9 @@ class ArtHippoNet:
 class CompleteAgentMemoryInterface:
     """High-level agent interface for ArtHippoNet."""
 
-    def __init__(self, agent_id: str, prefer_local_fallback: bool = False) -> None:
+    def __init__(self, agent_id: str, prefer_local_fallback: bool = False, memory_root: str | Path | None = None) -> None:
         self.agent_id = agent_id
-        self.memory = ArtHippoNet(agent_id, prefer_local_fallback=prefer_local_fallback)
+        self.memory = ArtHippoNet(agent_id, prefer_local_fallback=prefer_local_fallback, memory_root=memory_root)
 
     def remember_task(
         self,

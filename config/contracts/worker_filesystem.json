@@ -1,0 +1,60 @@
+{
+  "contract_version": "contract/v1.0",
+  "version": "1.0.0",
+  "agent": {
+    "name": "worker_filesystem",
+    "role": "worker",
+    "service": "worker_filesystem.service",
+    "summary": "Handles bounded local file read/write tasks delegated by the orchestrator."
+  },
+  "description": "Local-only worker contract for deterministic filesystem operations under explicit budgets and verifier gates.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_id": {"type": "string"},
+      "operation": {"type": "string"},
+      "path": {"type": "string"},
+      "content": {"type": "string"}
+    },
+    "required": ["task_id", "operation", "path"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "task_id": {"type": "string"},
+      "status": {"type": "string"},
+      "artifact_path": {"type": "string"},
+      "verification_trace": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["task_id", "status", "verification_trace"],
+    "additionalProperties": false
+  },
+  "permissions": {
+    "tools": ["filesystem.read", "filesystem.write", "ipc.unix"],
+    "syscalls": ["read", "write", "metadata", "ipc"]
+  },
+  "budgets": {
+    "token_budget": 256,
+    "time_budget_ms": 1500,
+    "max_depth": 2,
+    "max_memory_mb": 128
+  },
+  "verifier_hooks": [
+    {
+      "stage": "pre_execution",
+      "verifier": "lg_a_langsec",
+      "on_failure": "reject"
+    },
+    {
+      "stage": "post_execution",
+      "verifier": "verifier_trm",
+      "on_failure": "quarantine"
+    }
+  ],
+  "registration": {
+    "requires_contract_validation": true,
+    "handshake": "ed25519-nonce-v1",
+    "attestation": "lg_a_langsec"
+  }
+}
