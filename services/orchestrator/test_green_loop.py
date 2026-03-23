@@ -12,8 +12,8 @@ assert store_result["result"].get("episode_id") is not None
 result = demo.process_intent("recall my last task about debian setup", source="test")
 
 assert result["accepted"] == True
-assert result["result"].get("memory_recall") is not None
-assert len(result["result"]["memory_recall"].get("episodes", [])) >= 1 or len(result["result"]["memory_recall"].get("facts", [])) >= 1
+recall = result["result"].get("memory_recall", {})
+assert len(recall.get("past_experiences", [])) >= 1 or len(recall.get("relevant_facts", [])) >= 1
 
 print("✅ GREEN LOOP PASSED — memory now causally drives planning!")
 with open("green_loop_result.json", "w") as f:

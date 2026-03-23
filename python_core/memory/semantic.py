@@ -26,7 +26,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - import guard
 else:  # pragma: no cover - import guard
     _SENTENCE_TRANSFORMER_ERROR = None
 
-from ..refocus_core.logging import setup_logging
+from refocus_core.logging import setup_logging
 
 logger = setup_logging("semantic-memory")
 

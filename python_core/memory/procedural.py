@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..refocus_core.logging import setup_logging
+from refocus_core.logging import setup_logging
 
 MEMORY_ROOT = Path(__file__).resolve().parents[2] / "data" / "memory"
 logger = setup_logging("procedural-memory")
