@@ -64,6 +64,9 @@ done
 print_section "Local data directories"
 mkdir -p \
   "$ROOT_DIR/data/demo/runs" \
+  "$ROOT_DIR/data/memory/episodic_local/episodes" \
+  "$ROOT_DIR/data/memory/semantic_local" \
+  "$ROOT_DIR/data/memory/procedural"
   "$ROOT_DIR/data/demo/memory/episodic_local/episodes" \
   "$ROOT_DIR/data/demo/memory/semantic_local" \
   "$ROOT_DIR/data/demo/memory/procedural" \
@@ -75,6 +78,9 @@ cat <<EOT
 Created or verified these local-only directories:
 - $ROOT_DIR/data/demo/
 - $ROOT_DIR/data/demo/runs/
+- $ROOT_DIR/data/memory/episodic_local/episodes/
+- $ROOT_DIR/data/memory/semantic_local/
+- $ROOT_DIR/data/memory/procedural/
 - $ROOT_DIR/data/demo/memory/episodic_local/episodes/
 - $ROOT_DIR/data/demo/memory/semantic_local/
 - $ROOT_DIR/data/demo/memory/procedural/
@@ -86,6 +92,7 @@ EOT
 print_section "Next step"
 cat <<'EOT'
 Run one of these from the repository root:
+- scripts/dev.sh              # end-to-end local demo with stored + recalled intent
 - scripts/dev.sh               # end-to-end local demo with stored + recalled intent
 - scripts/verify-local-demo.sh # offline verification wrapper with artifact checks
 EOT

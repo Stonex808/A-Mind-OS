@@ -178,6 +178,22 @@ Required for the currently implemented local workflow:
 
 Optional for local development, but **not required** for the default offline demo path:
 
+### Required Python version
+
+- `python3` **3.11 or newer** is required for the currently implemented local demo path.
+- `scripts/setup.sh` fails fast if that requirement is not met.
+
+### Required vs optional dependencies
+
+Required for the currently implemented local workflow:
+
+- `python3` 3.11+
+- Standard-library modules only for `scripts/dev.sh`, `scripts/setup.sh`, `scripts/verify-local-demo.sh`, and `services/orchestrator/local_demo.py`
+
+Optional for local development, but **not required** for the default offline demo path:
+
+- `chromadb` + `sentence-transformers` for vector-backed memory instead of the JSON fallback
+- `structlog` for structured logs
 - `chromadb` + `sentence-transformers` for vector-backed memory instead of the JSON fallback
 - `structlog` for structured logs
 - `jsonschema` for contract schema validation and the contract validator test suite
@@ -242,6 +258,23 @@ printf 'remember the maintenance window is sunday
 
 ### Local artifacts
 
+`scripts/setup.sh` creates or verifies the directories. After a successful local demo, you should see:
+
+Under `./data/demo/`:
+
+- `demo-intent.txt` — The plain-text sample intent used by `scripts/dev.sh`.
+- `orchestrator.db` — SQLite index of every demo run.
+- `runs/run-*.json` — Full JSON artifact per run, including verifier output and recalled context.
+- `orchestrator.sock` — Only if you explicitly run socket mode.
+
+Under `./data/memory/`:
+
+- `episodic_local/episodes/*.json` — Repo-local episodic memory entries written by the fallback memory path.
+- `semantic_local/facts.json` — Stored local facts.
+- `semantic_local/concepts.json` — Stored local concepts.
+- `procedural/*.json` — Learned procedures extracted from successful demo runs.
+
+All of these files remain local and human-inspectable so contributors can back them up with standard file tools.
 - `./data/demo/orchestrator.db` — SQLite index of demo runs only.
 - `./data/demo/runs/*.json` — Full JSON artifact per run, including verifier output and recalled context.
 - `./data/demo/memory/episodic_local/` — Demo episodic memory JSON files.
@@ -262,6 +295,29 @@ All demo artifacts are stored as plain-text JSON or SQLite files on local disk. 
 - `config/refocus-os.toml` also exposes `sensitive_content.mode = "off" | "redact" | "refuse"`. `redact` replaces obvious secrets before writing local JSON/SQLite, while `refuse` aborts the write entirely for obvious secrets.
 - For backups, prefer encrypted archives or repository snapshots stored on an encrypted drive. A simple local-first option is to stop services, copy `./data/demo/`, `./data/demo/memory/`, and `./data/user/memory/`, then encrypt that backup with your normal disk or archive tooling.
 - If you need stronger at-rest protection, place `./data/` on an encrypted volume or use full-disk encryption; the app keeps files transparent on purpose and does not hide this trade-off.
+
+
+### What success looks like
+
+A successful local validation run looks like this:
+
+- `scripts/verify-local-demo.sh` exits with status code `0`.
+- The store step returns JSON containing `"accepted": true` and `"status": "stored"`.
+- The recall step returns JSON containing `"accepted": true` and `"status": "recalled"`.
+- The recall payload mentions the previously saved backup path through `past_experiences`, `relevant_facts`, or both.
+- `./data/demo/orchestrator.db` and at least two `./data/demo/runs/run-*.json` files exist after the run.
+
+### Intentionally not runnable yet
+
+The repository still contains architectural blueprints and service contracts that are **not** part of the current runnable local demo. In particular, contributors should treat these as planned or partial work rather than expecting them to boot locally today:
+
+- The full systemd boot chain described in the architecture docs.
+- Hydra security services such as LG-A, LG-C, and the kernel hook pipeline.
+- eBPF/kernel instrumentation and syscall anomaly monitoring.
+- The production multi-agent runtime, IPC bus, and authenticated envelope flow.
+- The final Tauri-based desktop shell and global hotkey integration.
+
+Today’s runnable path is intentionally narrower: one deterministic orchestrator demo with local verification and local persistence only.
 
 ---
 
