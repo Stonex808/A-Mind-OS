@@ -55,6 +55,10 @@ class LocalVerifier:
     def __init__(self, rules_path: Path) -> None:
         with open(rules_path, "r", encoding="utf-8") as handle:
             self.rules = json.load(handle)
+        required = ["max_intent_length", "required_keywords", "forbidden_patterns", "secret_patterns"]
+        for key in required:
+            if key not in self.rules:
+                raise ValueError(f"local_rules.json missing {key}")
 
     def verify(self, raw_intent: str) -> VerificationResult:
         cleaned = " ".join(raw_intent.strip().split())

@@ -1,4 +1,7 @@
-# Refocus-OS
+# A-Mind-OS (Refocus-OS vision)
+
+<image-card alt="Python" src="https://img.shields.io/badge/python-3.10+-blue" ></image-card>
+**Status**: Early prototype — local demo runs offline. Vision: agentic Debian layer.
 
 **Vision**  
 An AI-first, agent-centric operating system layer built on a custom Debian base. Refocus-OS reimagines the user-computer relationship, transforming the OS from a passive tool manager into a proactive, reasoning co-pilot secured by an adaptive AI defense system. The long-term goal is still a deeply integrated local operating environment with orchestrated agents, strong verification, and layered defenses.

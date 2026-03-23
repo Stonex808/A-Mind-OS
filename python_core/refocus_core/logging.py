@@ -13,8 +13,13 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when structlog missin
     structlog = None  # type: ignore[assignment]
 
 
+_STRUCTLOG_CONFIGURED = False
+
+
 def _ensure_structlog_configured(service_name: str, log_dir: Optional[Path], level: str) -> logging.Logger:
     """Configure a structlog logger when structlog is available."""
+
+    global _STRUCTLOG_CONFIGURED
 
     assert structlog is not None  # nosec: B101 - ensured by caller
 
@@ -33,13 +38,15 @@ def _ensure_structlog_configured(service_name: str, log_dir: Optional[Path], lev
     else:
         processors.append(structlog.dev.ConsoleRenderer())
 
-    structlog.configure(
-        processors=processors,
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
-    )
+    if not _STRUCTLOG_CONFIGURED:
+        structlog.configure(
+            processors=processors,
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+        _STRUCTLOG_CONFIGURED = True
 
     handlers = [logging.StreamHandler(sys.stdout)]
     if log_dir:
