@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "refocus://contracts/task_envelope.v1",
+  "title": "A-Mind-OS Task Envelope v1",
+  "type": "object",
+  "required": ["task_id", "created_at", "kind", "content", "source", "metadata"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^task-[a-f0-9]{12}$"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp in UTC"
+    },
+    "kind": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,31}$"
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_:\\-]{1,63}$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

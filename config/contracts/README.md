@@ -34,3 +34,8 @@ The validator is stdlib-only, deterministic, and rejects malformed JSON, missing
 ## Local-first and security notes
 
 Contracts are plain JSON files so they are easy to audit, diff, and back up locally. That also means they are not encrypted at rest; if a contract contains sensitive pathing or policy details, protect the repository with filesystem permissions and encrypted backups.
+
+
+## Shared task schema
+
+MVP task intake for the orchestrator uses `task_envelope.v1.json` as the shared wire contract for task routing (`task_id`, `kind`, `content`, `source`, and metadata).

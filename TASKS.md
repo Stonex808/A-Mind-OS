@@ -41,13 +41,13 @@ When choosing what to build next, prefer:
 - define service boundaries for future work
 
 ### Tasks
-- [ ] align README.md with actual MVP implementation goals
-- [ ] align ARCHITECTURE.md with current vs planned boundaries
-- [ ] add contributor-friendly repo map
-- [ ] verify local shell prototype runs cleanly
-- [ ] add or improve shell tabs/panels for Chat, Tasks, Files, Logs, Settings
-- [ ] add status/health indicators in the shell
-- [ ] add smoke test instructions for the shell
+- [x] align README.md with actual MVP implementation goals
+- [x] align ARCHITECTURE.md with current vs planned boundaries
+- [x] add contributor-friendly repo map
+- [x] verify local shell prototype runs cleanly
+- [x] add or improve shell tabs/panels for Chat, Tasks, Files, Logs, Settings
+- [x] add status/health indicators in the shell
+- [x] add smoke test instructions for the shell
 
 ### Deliverable
 A visible shell and clean documentation that reflect reality instead of only aspiration.
@@ -62,13 +62,13 @@ A visible shell and clean documentation that reflect reality instead of only asp
 - establish structured execution logging
 
 ### Tasks
-- [ ] define shared task schema
-- [ ] implement orchestrator service boundary
-- [ ] implement task queue or dispatcher
-- [ ] add planner role interface
-- [ ] add worker registry interface
-- [ ] persist structured execution logs
-- [ ] add smoke tests for orchestrator task flow
+- [x] define shared task schema
+- [x] implement orchestrator service boundary
+- [x] implement task queue or dispatcher
+- [x] add planner role interface
+- [x] add worker registry interface
+- [x] persist structured execution logs
+- [x] add smoke tests for orchestrator task flow
 
 ### Deliverable
 A minimal orchestrator that can receive a task, route it, log it, and return a result.

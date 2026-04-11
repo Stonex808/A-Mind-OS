@@ -3,93 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Refocus-OS Local Shell Prototype</title>
+    <title>A-Mind-OS Local Shell Prototype</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#intent-input">Skip to intent input</a>
-    <main class="app-shell" aria-label="Refocus-OS shell prototype">
+    <main class="app-shell" aria-label="A-Mind-OS shell prototype">
       <header class="hero-card">
         <div>
           <p class="eyebrow">Local-first prototype</p>
-          <h1>Refocus-OS Intent Shell</h1>
-          <p class="hero-copy">
-            A visible, offline-first command surface for testing intent capture before any Tauri or backend integration.
-          </p>
+          <h1>A-Mind-OS Intent Shell</h1>
+          <p class="hero-copy">Offline shell tabs for Chat, Tasks, Files, Logs, and Settings with visible service health.</p>
         </div>
         <div class="hero-status" aria-label="Prototype status">
           <span class="status-pill">Offline only</span>
           <span class="status-pill">No telemetry</span>
-          <span class="status-pill">Keyboard ready</span>
+          <span class="status-pill" id="status-health">Orchestrator: demo-ready</span>
         </div>
       </header>
 
-      <section class="grid-layout" aria-label="Shell workspace">
-        <section class="panel panel-intent" aria-labelledby="intent-title">
-          <div class="panel-head">
-            <h2 id="intent-title">Intent input</h2>
-            <p>Type a clear request, then press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> or use the submit button.</p>
-          </div>
+      <nav class="tab-row" aria-label="Shell tabs">
+        <button class="tab-button is-active" data-tab="chat">Chat</button>
+        <button class="tab-button" data-tab="tasks">Tasks</button>
+        <button class="tab-button" data-tab="files">Files</button>
+        <button class="tab-button" data-tab="logs">Logs</button>
+        <button class="tab-button" data-tab="settings">Settings</button>
+      </nav>
 
-          <form id="intent-form" novalidate>
-            <label for="intent-input" class="label-strong">What should the system do?</label>
-            <textarea
-              id="intent-input"
-              name="intent"
-              rows="8"
-              maxlength="500"
-              placeholder="Example: Summarize today’s local activity log and highlight blocked tasks."
-              aria-describedby="intent-help intent-error"
-              required
-            ></textarea>
-            <div class="helper-row">
-              <p id="intent-help">Input stays in this browser session unless you choose to persist it later.</p>
-              <p id="intent-counter" aria-live="polite">0 / 500</p>
-            </div>
-            <p id="intent-error" class="error-text" role="alert"></p>
-
-            <div class="action-row">
-              <button type="submit" id="submit-intent" class="button button-primary">Submit intent</button>
-              <button type="button" id="load-demo" class="button button-secondary">Load demo intent</button>
-              <button type="button" id="clear-intent" class="button button-secondary">Clear input</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel panel-log" aria-labelledby="activity-title">
-          <div class="panel-head">
-            <h2 id="activity-title">Activity log</h2>
-            <p>Local JSON-backed demo events. New submissions appear at the top for easy review.</p>
+      <section class="panel tab-panel" data-panel="chat">
+        <div class="panel-head">
+          <h2>Chat</h2>
+          <p>Type a request, then press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add a local task event.</p>
+        </div>
+        <form id="intent-form" novalidate>
+          <label for="intent-input" class="label-strong">What should the system do?</label>
+          <textarea id="intent-input" name="intent" rows="7" maxlength="500" aria-describedby="intent-help intent-error" required></textarea>
+          <div class="helper-row">
+            <p id="intent-help">Input stays local to this browser session.</p>
+            <p id="intent-counter" aria-live="polite">0 / 500</p>
           </div>
-          <ol id="activity-log" class="list-stack" tabindex="0" aria-live="polite"></ol>
-        </section>
+          <p id="intent-error" class="error-text" role="alert"></p>
+          <div class="action-row">
+            <button type="submit" id="submit-intent" class="button button-primary">Submit intent</button>
+            <button type="button" id="load-demo" class="button button-secondary">Load demo intent</button>
+            <button type="button" id="clear-intent" class="button button-secondary">Clear input</button>
+          </div>
+        </form>
+      </section>
 
-        <section class="panel panel-memory" aria-labelledby="memory-title">
-          <div class="panel-head">
-            <h2 id="memory-title">Memory panel</h2>
-            <p>Simple local notes showing what the prototype would retain or reference.</p>
-          </div>
-          <ul id="memory-list" class="list-stack" tabindex="0"></ul>
-        </section>
+      <section class="panel tab-panel is-hidden" data-panel="tasks">
+        <div class="panel-head">
+          <h2>Tasks</h2>
+          <p>Latest local task entries with status and route summary.</p>
+        </div>
+        <ol id="activity-log" class="list-stack" tabindex="0" aria-live="polite"></ol>
+      </section>
 
-        <section class="panel panel-safety" aria-labelledby="safety-title">
-          <div class="panel-head">
-            <h2 id="safety-title">Emergency controls</h2>
-            <p>Use the stop button to clear the active state immediately. No hidden steps.</p>
-          </div>
-          <button type="button" id="emergency-stop" class="button button-danger">Clear emergency stop</button>
-          <p id="stop-status" class="stop-status" aria-live="assertive">
-            System ready. No emergency stop active.
-          </p>
-          <div class="local-notes">
-            <h3>Privacy notes</h3>
-            <ul>
-              <li>No cloud requests or analytics are used in this prototype.</li>
-              <li>Demo data is loaded from <code>ui/shell/demo-data.json</code>.</li>
-              <li>A future persisted mode should encrypt sensitive history at rest.</li>
-            </ul>
-          </div>
-        </section>
+      <section class="panel tab-panel is-hidden" data-panel="files">
+        <div class="panel-head">
+          <h2>Files</h2>
+          <p>Local artifact hints for quick orientation.</p>
+        </div>
+        <ul class="list-stack" id="file-hints">
+          <li><h3>Run artifacts</h3><p>data/demo/runs/run-*.json</p></li>
+          <li><h3>Execution logs</h3><p>data/demo/execution_events.jsonl</p></li>
+          <li><h3>Memory snapshots</h3><p>data/demo/memory/semantic_local/facts.json</p></li>
+        </ul>
+      </section>
+
+      <section class="panel tab-panel is-hidden" data-panel="logs">
+        <div class="panel-head">
+          <h2>Logs</h2>
+          <p>Memory and safety visibility for the prototype.</p>
+        </div>
+        <ul id="memory-list" class="list-stack" tabindex="0"></ul>
+        <p id="stop-status" class="stop-status" aria-live="assertive">System ready. No emergency stop active.</p>
+      </section>
+
+      <section class="panel tab-panel is-hidden" data-panel="settings">
+        <div class="panel-head">
+          <h2>Settings</h2>
+          <p>Prototype controls and privacy notes.</p>
+        </div>
+        <button type="button" id="emergency-stop" class="button button-danger">Clear emergency stop</button>
+        <ul>
+          <li>No cloud requests or analytics in this prototype.</li>
+          <li>Demo data loads from <code>ui/shell/demo-data.json</code>.</li>
+          <li>Use encrypted storage before handling sensitive logs.</li>
+        </ul>
       </section>
     </main>
 

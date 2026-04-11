@@ -89,6 +89,8 @@ class ContractRegistry:
         seen_names: dict[str, Path] = {}
         for path in self.discover_contract_files():
             contract = self._load_contract(path)
+            if contract is None:
+                continue
             existing = seen_names.get(contract.agent_name)
             if existing is not None:
                 raise ContractValidationError(
@@ -111,11 +113,14 @@ class ContractRegistry:
             }
         return registerable
 
-    def _load_contract(self, path: Path) -> AgentContract:
+    def _load_contract(self, path: Path) -> AgentContract | None:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise ContractValidationError(f"{path}: invalid JSON ({exc})") from exc
+
+        if isinstance(payload, dict) and "agent" not in payload and "$schema" in payload:
+            return None
 
         validate_contract_payload(payload, source=path)
         return AgentContract(source_path=path, payload=payload)

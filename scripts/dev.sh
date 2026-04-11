@@ -21,24 +21,21 @@ echo
 
 echo "1) storing an intent from a local file"
 REFOCUS_DEMO_DATA_DIR="$DEMO_DATA_DIR" \
-REFOCUS_MEMORY_SEMANTIC_DIR="${REFOCUS_MEMORY_SEMANTIC_DIR:-$DEMO_MEMORY_ROOT/semantic_local}" \
-REFOCUS_MEMORY_EPISODIC_DIR="${REFOCUS_MEMORY_EPISODIC_DIR:-$DEMO_MEMORY_ROOT/episodic_local}" \
-REFOCUS_MEMORY_PROCEDURAL_DIR="${REFOCUS_MEMORY_PROCEDURAL_DIR:-$DEMO_MEMORY_ROOT/procedural}" \
+REFOCUS_DEMO_MEMORY_ROOT="$DEMO_MEMORY_ROOT" \
 python3 "$ROOT_DIR/services/orchestrator/local_demo.py" --intent-file "$INTENT_FILE"
 
 echo
 echo "2) recalling context from stdin"
 printf 'recall backup path\n' | \
 REFOCUS_DEMO_DATA_DIR="$DEMO_DATA_DIR" \
-REFOCUS_MEMORY_SEMANTIC_DIR="${REFOCUS_MEMORY_SEMANTIC_DIR:-$DEMO_MEMORY_ROOT/semantic_local}" \
-REFOCUS_MEMORY_EPISODIC_DIR="${REFOCUS_MEMORY_EPISODIC_DIR:-$DEMO_MEMORY_ROOT/episodic_local}" \
-REFOCUS_MEMORY_PROCEDURAL_DIR="${REFOCUS_MEMORY_PROCEDURAL_DIR:-$DEMO_MEMORY_ROOT/procedural}" \
+REFOCUS_DEMO_MEMORY_ROOT="$DEMO_MEMORY_ROOT" \
 python3 "$ROOT_DIR/services/orchestrator/local_demo.py" --stdin
 
 echo
 echo "Artifacts written under $DEMO_DATA_DIR"
 echo "- Intent file: $INTENT_FILE"
 echo "- SQLite index: $DEMO_DATA_DIR/orchestrator.db"
+echo "- Execution events: $DEMO_DATA_DIR/execution_events.jsonl"
 echo "- JSON run logs: $DEMO_DATA_DIR/runs/"
 echo "- Demo memory JSON: $DEMO_MEMORY_ROOT/"
 echo "- Retention knobs: config/refocus-os.toml [local_persistence.demo]"

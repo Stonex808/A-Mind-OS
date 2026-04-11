@@ -66,7 +66,7 @@ mkdir -p \
   "$ROOT_DIR/data/demo/runs" \
   "$ROOT_DIR/data/memory/episodic_local/episodes" \
   "$ROOT_DIR/data/memory/semantic_local" \
-  "$ROOT_DIR/data/memory/procedural"
+  "$ROOT_DIR/data/memory/procedural" \
   "$ROOT_DIR/data/demo/memory/episodic_local/episodes" \
   "$ROOT_DIR/data/demo/memory/semantic_local" \
   "$ROOT_DIR/data/demo/memory/procedural" \
@@ -92,7 +92,7 @@ EOT
 print_section "Next step"
 cat <<'EOT'
 Run one of these from the repository root:
-- scripts/dev.sh              # end-to-end local demo with stored + recalled intent
 - scripts/dev.sh               # end-to-end local demo with stored + recalled intent
 - scripts/verify-local-demo.sh # offline verification wrapper with artifact checks
+- scripts/smoke-orchestrator-task-flow.sh # orchestrator routing and logging smoke test
 EOT
