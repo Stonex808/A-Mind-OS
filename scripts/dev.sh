@@ -36,6 +36,10 @@ REFOCUS_MEMORY_PROCEDURAL_DIR="${REFOCUS_MEMORY_PROCEDURAL_DIR:-$DEMO_MEMORY_ROO
 python3 "$ROOT_DIR/services/orchestrator/local_demo.py" --stdin
 
 echo
+echo "3) exporting latest orchestrator activity for shell panels"
+python3 "$ROOT_DIR/services/orchestrator/export_shell_feed.py"
+
+echo
 echo "Artifacts written under $DEMO_DATA_DIR"
 echo "- Intent file: $INTENT_FILE"
 echo "- SQLite index: $DEMO_DATA_DIR/orchestrator.db"

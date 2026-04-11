@@ -65,8 +65,8 @@ A visible shell and clean documentation that reflect reality instead of only asp
 - [ ] define shared task schema
 - [ ] implement orchestrator service boundary
 - [ ] implement task queue or dispatcher
-- [ ] add planner role interface
-- [ ] add worker registry interface
+- [x] add planner role interface
+- [x] add worker registry interface
 - [ ] persist structured execution logs
 - [ ] add smoke tests for orchestrator task flow
 
@@ -83,17 +83,17 @@ A minimal orchestrator that can receive a task, route it, log it, and return a r
 - avoid pretending RL exists yet
 
 ### Tasks
-- [ ] create planner agent interface
-- [ ] create at least two worker agents
-- [ ] isolate worker inputs/outputs
-- [ ] add worker result summarization back to planner
-- [ ] define simple task delegation flow
-- [ ] add tests for planner-to-worker handoff
+- [x] create planner agent interface
+- [x] create at least two worker agents
+- [x] isolate worker inputs/outputs
+- [x] add worker result summarization back to planner
+- [x] define simple task delegation flow
+- [x] add tests for planner-to-worker handoff
 
 ### Suggested First Workers
-- [ ] `research_worker`
-- [ ] `code_worker`
-- [ ] `memory_worker`
+- [x] `research_worker`
+- [x] `code_worker`
+- [x] `memory_worker`
 
 ### Deliverable
 A working planner/worker architecture without full reinforcement learning.
@@ -150,8 +150,8 @@ A practical Hydra MVP that can block obvious bad prompts and code before executi
 ### Tasks
 - [ ] connect shell to orchestrator endpoints
 - [ ] show live task states in UI
-- [ ] show logs/events in UI
-- [ ] show memory summaries in UI
+- [x] show logs/events in UI
+- [x] show memory summaries in UI
 - [ ] show blocked actions and safety notices in UI
 - [ ] add settings panel for local/runtime configuration
 

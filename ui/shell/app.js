@@ -84,8 +84,21 @@ const setEmergencyState = (isStopped) => {
 };
 
 const loadDemoData = async () => {
-  const response = await fetch('./demo-data.json', { cache: 'no-store' });
-  const data = await response.json();
+  let data = null;
+  try {
+    const liveResponse = await fetch('./orchestrator-feed.json', { cache: 'no-store' });
+    if (liveResponse.ok) {
+      data = await liveResponse.json();
+    }
+  } catch (err) {
+    data = null;
+  }
+
+  if (!data || !Array.isArray(data.activity)) {
+    const response = await fetch('./demo-data.json', { cache: 'no-store' });
+    data = await response.json();
+  }
+
   state.demoData = data;
   renderActivity(data.activity);
   renderMemory(data.memory);

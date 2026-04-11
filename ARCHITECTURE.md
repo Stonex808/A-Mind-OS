@@ -40,7 +40,7 @@ The long-term UI is a Tauri/React HUD and Terminal for interacting with the Orch
 
 ### Orchestrator (`services/orchestrator/`) — implemented now
 **Purpose:** Central reasoning and coordination hub.  
-**Current state:** The local demo is the main runnable subsystem in this repository. It validates intents against local rules, stores them in local JSON/SQLite-backed memory, and supports deterministic recall without cloud calls.  
+**Current state:** The local demo is the main runnable subsystem in this repository. It validates intents against local rules, routes accepted tasks through a MATPO-lite planner/worker contract (`planner_worker.py`), stores them in local JSON/SQLite-backed memory, and supports deterministic recall without cloud calls.  
 **Contributor path:** Run `scripts/dev.sh` first, then inspect `data/demo/` and `data/memory/` before extending the broader orchestrator design.  
 **Target components:**
 - **Intent Fusion Network (IFN):** Weighted vector fusion of sanitized user/system intents.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import socketserver
 import sqlite3
@@ -14,6 +15,14 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from contract_registry import ContractRegistry
+from planner_worker import (
+    CodeWorker,
+    LocalPlanner,
+    MemoryWorker,
+    PlannerWorkerOrchestrator,
+    ResearchWorker,
+    WorkerRegistry,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_CORE = REPO_ROOT / "python_core"
@@ -23,7 +32,7 @@ if str(PYTHON_CORE) not in sys.path:
 from memory.memory_integration import CompleteAgentMemoryInterface  # noqa: E402
 
 DATA_DIR = REPO_ROOT / "data" / "demo"
-MEMORY_DIR = REPO_ROOT / "data" / "memory"
+MEMORY_DIR = Path(os.environ.get("REFOCUS_DEMO_MEMORY_ROOT", str(DATA_DIR / "memory")))
 RULES_PATH = Path(__file__).resolve().parent / "rules" / "local_rules.json"
 DEFAULT_SOCKET_PATH = DATA_DIR / "orchestrator.sock"
 INTENT_RE = re.compile(r"\s+")
@@ -148,6 +157,15 @@ class LocalOrchestratorDemo:
         self.artifacts = LocalArtifactStore(data_dir)
         self.contract_registry = ContractRegistry()
         self.registerable_agents = self.contract_registry.contracts_for_registration()
+        self.planner = LocalPlanner()
+        self.worker_registry = WorkerRegistry()
+        self.memory_worker = MemoryWorker(self.memory)
+        self.research_worker = ResearchWorker(self.memory)
+        self.code_worker = CodeWorker(self.memory)
+        self.worker_registry.register(self.memory_worker)
+        self.worker_registry.register(self.research_worker)
+        self.worker_registry.register(self.code_worker)
+        self.planner_orchestrator = PlannerWorkerOrchestrator(self.planner, self.worker_registry)
         self._seed_local_context()
 
     def _seed_local_context(self) -> None:
@@ -163,14 +181,44 @@ class LocalOrchestratorDemo:
 
     def process_intent(self, raw_intent: str, source: str) -> Dict[str, Any]:
         verification = self.verifier.verify(raw_intent)
-        recall = self.memory.recall_for_situation(verification.normalized_intent or raw_intent)
         if verification.accepted:
-            outcome = self._apply_memory_action(verification, recall)
+            task_id = f"task-{int(time.time() * 1000)}"
+            decision, worker_result, planner_summary = self.planner_orchestrator.execute(
+                task_id=task_id,
+                intent=verification.normalized_intent or raw_intent,
+                action=verification.action,
+            )
+            outcome = {
+                "status": worker_result.status,
+                "message": worker_result.summary,
+                "planner_decision": {
+                    "worker_name": decision.worker_name,
+                    "reason": decision.reason,
+                    "budget": decision.budget,
+                },
+                "worker_result": {
+                    "worker_name": worker_result.worker_name,
+                    "status": worker_result.status,
+                    "output": worker_result.output,
+                    "errors": worker_result.errors,
+                },
+                "planner_summary": {
+                    "status": planner_summary.status,
+                    "summary_text": planner_summary.summary_text,
+                    "highlighted_outputs": planner_summary.highlighted_outputs,
+                },
+            }
+            if "episode_id" in worker_result.output:
+                outcome["episode_id"] = worker_result.output["episode_id"]
+            if "topic" in worker_result.output:
+                outcome["topic"] = worker_result.output["topic"]
+            if "memory_recall" in worker_result.output:
+                outcome["memory_recall"] = worker_result.output["memory_recall"]
         else:
             outcome = {
                 "status": "rejected",
                 "message": "Intent rejected by local verifier.",
-                "memory_recall": recall,
+                "memory_recall": self.memory.recall_for_situation(verification.normalized_intent or raw_intent),
             }
         return self.artifacts.persist_run(
             source=source,
@@ -178,41 +226,6 @@ class LocalOrchestratorDemo:
             verification=verification,
             result=outcome,
         )
-
-    def _apply_memory_action(self, verification: VerificationResult, recall: Dict[str, Any]) -> Dict[str, Any]:
-        if verification.action == "recall":
-            return {
-                "status": "recalled",
-                "message": "Returned matching local context.",
-                "memory_recall": recall,
-            }
-
-        normalized = verification.normalized_intent
-        topic = self._extract_topic(normalized)
-        self.memory.learn_fact(topic, "noted_as", normalized)
-        episode_id = self.memory.remember_task(
-            task=normalized,
-            actions=["verified intent locally", "stored fact in semantic memory", "persisted run artifacts"],
-            outcome="Stored locally for future deterministic recall",
-            success=True,
-            observations=["offline-only", "repo-local persistence"],
-            tags=["local-demo", "intent"],
-        )
-        return {
-            "status": "stored",
-            "message": "Intent stored in local memory.",
-            "episode_id": episode_id,
-            "topic": topic,
-            "memory_recall": recall,
-        }
-
-    @staticmethod
-    def _extract_topic(intent: str) -> str:
-        lowered = intent.lower()
-        for prefix in ("remember ", "store ", "note "):
-            if lowered.startswith(prefix):
-                return intent[len(prefix):].strip() or "intent"
-        return "intent"
 
 
 class IntentSocketHandler(socketserver.StreamRequestHandler):
