@@ -1,0 +1,58 @@
+{
+  "contract_version": "contract/v1.0",
+  "version": "1.0.0",
+  "agent": {
+    "name": "verifier_trm",
+    "role": "verifier",
+    "service": "verifier_trm.service",
+    "summary": "Performs schema, regex, and logic checks for agent registration and runtime verification."
+  },
+  "description": "Deterministic Tiny Recursive Model verifier contract for offline schema validation and bounded-depth checks.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "payload": {"type": "object"},
+      "constraints": {"type": "object"},
+      "depth": {"type": "integer"}
+    },
+    "required": ["payload", "constraints", "depth"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "accepted": {"type": "boolean"},
+      "reasons": {"type": "array", "items": {"type": "string"}},
+      "normalized_payload": {"type": "object"}
+    },
+    "required": ["accepted", "reasons", "normalized_payload"],
+    "additionalProperties": false
+  },
+  "permissions": {
+    "tools": ["verification.schema", "verification.regex", "verification.logic"],
+    "syscalls": ["none"]
+  },
+  "budgets": {
+    "token_budget": 128,
+    "time_budget_ms": 500,
+    "max_depth": 3,
+    "max_memory_mb": 64
+  },
+  "verifier_hooks": [
+    {
+      "stage": "pre_execution",
+      "verifier": "verifier_trm",
+      "on_failure": "reject"
+    },
+    {
+      "stage": "post_execution",
+      "verifier": "verifier_trm",
+      "on_failure": "log_only"
+    }
+  ],
+  "registration": {
+    "requires_contract_validation": true,
+    "handshake": "ed25519-nonce-v1",
+    "attestation": "orchestrator"
+  }
+}

@@ -1,38 +1,39 @@
 # System Architecture: Refocus-OS
 
 ## Core Philosophy
-Refocus-OS converts the Linux userspace into a cognitive runtime secured by an intelligent defense fabric. The long-term target is a central nervous system (Message Bus) and a brainstem (Orchestrator) that direct a colony of agents within verifiable security boundaries. Efficiency, modularity, deterministic reasoning, and proactive protection are the design foundations.
+Refocus-OS is currently a blueprint for a cognitive runtime secured by a layered defense fabric. The repository already includes local-first intent-ingress security hooks, concrete envelope schemas, and structured local audit storage, while the broader Message Bus, full Orchestrator runtime, and kernel-level defenses remain planned. Efficiency, modularity, deterministic reasoning, and proactive protection are the design foundations.
 
 ## Current Implementation Boundary
 Before diving into the target architecture, keep the current repository status in mind:
 
 - **Implemented now:** `services/orchestrator/local_demo.py` provides a runnable local-first orchestrator workflow backed by JSON and SQLite artifacts.
+- **Implemented now:** `config/contracts/` contains versioned envelope JSON Schemas plus fixtures and a validator workflow.
 - **Local demo / prototype:** `ui/shell/` provides a visible offline shell prototype in plain HTML/CSS/JS.
-- **Planned / blueprint only:** the Hydra security services, the systemd service graph, and the contract registry are documented here but are not yet wired into a complete runnable stack in this repository.
+- **Planned / blueprint only:** the Hydra security services, the systemd service graph, and most of the broader multi-agent runtime are documented here but are not yet wired into a complete runnable stack in this repository.
 
 For contributor onboarding, start with the orchestrator demo and shell prototype first. They are offline by default, inspectable on disk, and do not require cloud services.
 
 ## Architectural Layers
 
-**Layer 0: Hardware & Kernel**  
-A custom Debian base with standard Linux Kernel and eBPF instrumentation. Performance-critical components such as attention kernels, syscall monitors, and integrity verifiers are intended to live at the driver/eBPF level.
+**Layer 0: Hardware & Kernel (planned)**  
+A custom Debian base with standard Linux Kernel and prospective eBPF instrumentation. Performance-critical components such as attention kernels, syscall monitors, and integrity verifiers are architectural goals, not current repository features.
 
-**Layer 1: Model Runtime**  
+**Layer 1: Model Runtime (planned)**  
 A high-efficiency inference server (vLLM or llama.cpp) is the planned runtime for the foundation model, including quantization, LoRA loading, and batch scheduling.
 
-**Layer 2: Hydra Defense System**  
-Implements the Adaptive Integrity Shield. In the target design, it continuously audits agent communications, code outputs, and syscall behaviors through the LangSec, CodeSec, and SysSec guard models.
+**Layer 2: Hydra Defense System (partially planned)**  
+The current repository implements only the earliest local security hooks: intent sanitization/schema validation, structured local auditing, and explicit execution allowlists. Dedicated LangSec, CodeSec, and SysSec services remain planned.
 
-**Layer 3: IPC Message Bus**  
-A Unix-socket-based, schema-validated bus for inter-agent messaging. Each envelope is intended to be versioned, signed, and inspected by the Hydra Defense layer before delivery. Messages include GRACE semantic embeddings for long-term retrieval and audit.
+**Layer 3: IPC Message Bus (planned)**  
+A Unix-socket-based, schema-validated bus for inter-agent messaging is planned. Versioned, signed envelopes and Hydra inspection are design targets rather than implemented features.
 
-**Layer 4: The Orchestrator & Services**  
-The brainstem coordinating system intent, decomposition, and scheduling. The full design fuses user and background inputs into consensus intents, decomposes them into subtasks using MATPO, and manages execution via the Compute Economist.
+**Layer 4: The Orchestrator & Services (planned)**  
+The future orchestrator will fuse user and background inputs into consensus intents, decompose them into subtasks using MATPO, and manage execution via the Compute Economist. Today, only the local demo workflow and execution-policy primitives are implemented.
 
-**Layer 5: Specialist Agents**  
+**Layer 5: Specialist Agents (planned)**  
 Independent sandboxed workers performing tasks defined by their contracts. Each is intended to operate in a restricted namespace, communicating only through the Message Bus with authenticated envelopes.
 
-**Layer 6: User Interface Layer**  
+**Layer 6: User Interface Layer (mixed)**  
 The long-term UI is a Tauri/React HUD and Terminal for interacting with the Orchestrator, managing budgets, and visualizing security alerts. The currently runnable UI is a simpler static prototype in `ui/shell/`.
 
 ## Core Subsystems and Logic Flow
@@ -45,23 +46,25 @@ The long-term UI is a Tauri/React HUD and Terminal for interacting with the Orch
 - **Intent Fusion Network (IFN):** Weighted vector fusion of sanitized user/system intents.
 - **Planner/Worker Scheduler:** MATPO for task DAG generation and assignment.
 - **Compute Economist:** Budgets from `economist.yaml` to optimize token/time.
-- **Contract Registry:** Loads & validates semver JSON contracts from `/etc/refocus/contracts`.
+- **Contract Registry:** Loads & validates semver JSON contracts from `/etc/refocus/contracts` or the developer mirror in `config/contracts/`, beginning with `config/contracts/envelope.v1.schema.json` and service-specific schemas.
+- **Implemented now:** local intent ingress validation/sanitization hooks live in `python_core/refocus_core/intent_security.py` and can be wired into an eventual orchestrator endpoint.
+- **Implemented now:** the local demo persists run artifacts and memory locally for deterministic replay and inspection.
 
 ### Hydra Defense System (`services/security/`) — planned / blueprint only
 **Purpose:** Continuous adaptive protection.  
 **Current state:** This area currently consists of design-oriented `agents.md` files for the security layers. No runnable LangSec, CodeSec, SysSec, or kernel-hook services are implemented in this repository yet.  
 **Contributor path:** Keep security interfaces in mind, but start by iterating on the local orchestrator path and static shell prototype.  
 **Target components:**
-- **Kernel Hook Service:** eBPF syscall tracing + ZeroMQ publication.
+- **Kernel Hook Service:** eBPF syscall tracing + local publication.
 - **LG-A (LangSec):** Prompt sanitization & injection defense.
-- **LG-B (CodeSec):** Code safety validation & vuln scanning.
+- **LG-B (CodeSec):** Code safety validation & vulnerability scanning.
 - **LG-C (SysSec):** Real-time anomaly detection + kill-switch.
 
 ### Message Bus & Semantic Spine (`ops/ipc/`) — planned / blueprint only
 **Purpose:** Communication backbone + memory reference.  
 **Current state:** This remains an architectural direction rather than a fully implemented bus in the repo.  
 **Target components:**
-- **Envelope Schema:** ID, timestamps, src/dst, verb, payload, signature, budget.
+- **Envelope Schema:** `config/contracts/envelope.v1.schema.json` defines ID, timestamps, src/dst, verb, payload, signature, budget, and `schema_version`. Dispatch-specific constraints live in `config/contracts/orchestrator.envelope.v1.schema.json`, `config/contracts/verifier.envelope.v1.schema.json`, and `config/contracts/langsec.envelope.v1.schema.json`.
 - **GRACE Service:** Embedding index for intents, logs, rationale.
 
 ### Specialist Agents (`services/agents/`) — planned / blueprint only
@@ -91,17 +94,26 @@ The long-term UI is a Tauri/React HUD and Terminal for interacting with the Orch
 **Current state:** The repository includes unit and target templates that express the intended dependency graph, but they are not a complete working deployment of the full stack.  
 **Contributor path:** Use these files as references for naming and future ordering, but use `scripts/dev.sh` and a local static server for today's development path.
 
-### Contracts (`config/contracts/`) — planned / blueprint only
+### Contracts (`config/contracts/`) — mixed
 **Purpose:** Shared contracts defining inputs, outputs, budgets, and verifier hooks.  
-**Current state:** Only a README describing the expected contract shape is present today; a concrete contract set is not yet checked in.  
-**Contributor path:** Keep the contract model in mind, but do not block local-first prototyping on a not-yet-populated registry.
+**Current state:** Concrete local envelope schemas, fixtures, and validation tooling now exist, while broader contract coverage remains incomplete.  
+**Contributor path:** Build against the checked-in schemas first, then extend the registry incrementally without blocking the local-first workflow.
 
 ### Example Logic Flow: Secure Request
-1. Intent Capture → 2. Sanitization → 3. Fusion → 4. Planning → 5. Execution → 6. Monitoring → 7. Verification → 8. Output
+1. Intent Capture → 2. **Implemented now:** local sanitization/schema validation + audit → 3. **Planned later:** fusion → 4. **Planned later:** planning → 5. **Implemented now for future execution paths:** allowlist gate + audit → 6. **Planned later:** monitoring → 7. **Planned later:** verification → 8. **Planned later:** output
+
+This remains the target end-state flow. The current runnable local loop is smaller: validate intent → persist locally → recall locally.
 
 This remains the target end-state flow. The current runnable local loop is smaller: validate intent → persist locally → recall locally.
 
 ## Security & Integrity Enhancements
+**Implemented now**
+- Local intent sanitization and schema validation.
+- Explicit allowlist enforcement for future command/tool execution paths.
+- Local structured audit persistence in JSONL or SQLite.
+- Versioned local envelope schemas and validation fixtures.
+
+**Planned later**
 - ed25519 agent keys; rotating nonces.
 - eBPF syscall whitelists per agent.
 - Hash-linked audit chains.
