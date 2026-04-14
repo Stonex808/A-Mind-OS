@@ -1,9 +1,5 @@
 # Contracts
 
-**Status:** planned / blueprint only  
-**Best contributor on-ramp:** start with the runnable local-first orchestrator demo and shell prototype; use this directory as the place where formal contracts will land once the multi-service runtime is fleshed out.  
-**Current repo reality:** this directory currently documents the expected contract shape, but no concrete contract set is checked in yet.
-
 Put semver JSON contracts here. Each contract defines:
 - inputs/outputs schema
 - permitted tools/syscalls
@@ -12,10 +8,29 @@ Put semver JSON contracts here. Each contract defines:
 
 The Orchestrator loads contracts from `/etc/refocus/contracts` (system path) or `./config/contracts` (dev path).
 
+## Required fields
 
-Current local-first contract set:
-- `envelope.v1.schema.json` — base envelope every message must satisfy.
-- `orchestrator.envelope.v1.schema.json` — orchestrator-bound dispatch envelopes.
-- `verifier.envelope.v1.schema.json` — verifier requests for schema/policy checks.
-- `langsec.envelope.v1.schema.json` — LangSec prompt/context review requests.
-- `examples/*.json` — offline valid/invalid fixtures for regression tests.
+Every contract must include these top-level keys:
+- `contract_version`: contract schema version such as `contract/v1.0`
+- `version`: semver for the specific agent contract such as `1.0.0`
+- `agent`: object with `name`, `role`, `service`, and `summary`
+- `description`: human-readable local-first purpose statement
+- `input_schema` / `output_schema`: object-shaped JSON-schema-like definitions
+- `permissions`: `tools` and `syscalls` allowlists
+- `budgets`: `token_budget`, `time_budget_ms`, `max_depth`, `max_memory_mb`
+- `verifier_hooks`: one or more deterministic verification stages
+- `registration`: handshake + attestation requirements before agent registration
+
+## Validation behavior
+
+Use the offline validator before registering agents:
+
+```bash
+python3 services/orchestrator/validate_contracts.py
+```
+
+The validator is stdlib-only, deterministic, and rejects malformed JSON, missing required keys, invalid semver, unsafe schema defaults (such as `additionalProperties != false`), unknown tool/syscall categories, non-positive budgets, and duplicate agent names.
+
+## Local-first and security notes
+
+Contracts are plain JSON files so they are easy to audit, diff, and back up locally. That also means they are not encrypted at rest; if a contract contains sensitive pathing or policy details, protect the repository with filesystem permissions and encrypted backups.

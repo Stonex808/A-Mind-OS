@@ -1,0 +1,60 @@
+{
+  "contract_version": "contract/v1.0",
+  "version": "1.0.0",
+  "agent": {
+    "name": "orchestrator",
+    "role": "orchestrator",
+    "service": "orchestrator.service",
+    "summary": "Fuses sanitized intent, plans MATPO DAGs, and gates agent registration through validated contracts."
+  },
+  "description": "Local-first orchestrator contract for deterministic planning, contract registry loading, and pre-registration validation.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "intent": {"type": "string"},
+      "intent_source": {"type": "string"},
+      "context_window": {"type": "array", "items": {"type": "string"}},
+      "requested_agent_roles": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["intent", "intent_source"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "plan_id": {"type": "string"},
+      "dag": {"type": "array", "items": {"type": "object"}},
+      "selected_agents": {"type": "array", "items": {"type": "string"}},
+      "verification_trace": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["plan_id", "dag", "selected_agents", "verification_trace"],
+    "additionalProperties": false
+  },
+  "permissions": {
+    "tools": ["ipc.unix", "planner.dag", "memory.read"],
+    "syscalls": ["read", "metadata", "ipc"]
+  },
+  "budgets": {
+    "token_budget": 1024,
+    "time_budget_ms": 4000,
+    "max_depth": 4,
+    "max_memory_mb": 256
+  },
+  "verifier_hooks": [
+    {
+      "stage": "pre_registration",
+      "verifier": "verifier_trm",
+      "on_failure": "reject"
+    },
+    {
+      "stage": "pre_execution",
+      "verifier": "lg_a_langsec",
+      "on_failure": "quarantine"
+    }
+  ],
+  "registration": {
+    "requires_contract_validation": true,
+    "handshake": "ed25519-nonce-v1",
+    "attestation": "lg_a_langsec"
+  }
+}
