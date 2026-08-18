@@ -1,0 +1,40 @@
+{
+  "schema": "a-mind.canonical-slice-source-manifest.v1",
+  "decision_date_hst": "2026-08-17",
+  "repository": "Stonex808/A-Mind-OS",
+  "historical_main": {
+    "branch": "lineage/historical-main-2026-04-11",
+    "commit": "abaa1e1b22db5ab5f485197b43006ea3788d7fff"
+  },
+  "integrated_pull_requests": [
+    {"number": 16, "head": "603fed48ec2d8f258dc77cfdce7f6573e184df61"},
+    {"number": 17, "head": "0dbf45fc72edfd162d34718270e37827e1f43cff"},
+    {"number": 18, "head": "63924dcf31e64bd7b5c9818c2c205d4ddb4cf36e"}
+  ],
+  "slice_a_release": {
+    "name": "A-Mind_Project_State_Slice_A_v1.1.0.zip",
+    "sha256": "753f83450228c019b08de71adefa49155461c1a9c8239192716269e5df7a4b06",
+    "note": "Hash preserved from the verified 2026-08-04 checkpoint record; release archive is not embedded here."
+  },
+  "harness_spec": {
+    "name": "A-Mind_Harness_Evolution_Governance_Spec_v0.1.0.md",
+    "sha256": "b3360ac3d8e55e63bca8faae059516f1fc715ce13f6b6afa781d814028344be3",
+    "effective_date_hst": "2026-08-14",
+    "status": "canonical architecture specification"
+  },
+  "refocus_ancestry_source": {
+    "name": "refocus_os_guide.md",
+    "sha256": "8028d98a9bdfce7f01a820e6252983173fff7f9fbdcb04c95e180ecb390e25c2",
+    "bytes": 151128
+  },
+  "refocus_extractions": [
+    "agent lifecycle and health supervision",
+    "deterministic admitted tool brokerage",
+    "Compute Economist resource accounting"
+  ],
+  "canonical_source_gate": {
+    "authority_matrix": "governance/01_AUTHORITY_MATRIX.yaml",
+    "project_registry": "governance/02_PROJECT_REGISTRY.yaml",
+    "policy": "fail_closed_until_complete_current_sources_exist"
+  }
+}
