@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - validation/canonical-main-audit-2026-08-17
+  pull_request:
+    branches:
+      - Main
   workflow_dispatch:
 
 jobs:
