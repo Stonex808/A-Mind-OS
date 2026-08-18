@@ -92,7 +92,6 @@ EOT
 print_section "Next step"
 cat <<'EOT'
 Run one of these from the repository root:
-- scripts/dev.sh               # end-to-end local demo with stored + recalled intent
+- scripts/dev.sh              # end-to-end local demo with stored + recalled intent
 - scripts/verify-local-demo.sh # offline verification wrapper with artifact checks
-- scripts/smoke-orchestrator-task-flow.sh # orchestrator routing and logging smoke test
 EOT

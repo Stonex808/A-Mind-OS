@@ -1,0 +1,24 @@
+{
+  "activity": [
+    {
+      "title": "RECALLED · memory_worker",
+      "detail": "memory_worker completed: Returned bounded recall context.",
+      "timestamp": "2026-04-11 10:21 UTC"
+    },
+    {
+      "title": "STORED · memory_worker",
+      "detail": "memory_worker completed: Stored intent and episode in local memory.",
+      "timestamp": "2026-04-11 10:21 UTC"
+    }
+  ],
+  "memory": [
+    {
+      "label": "Task recalled",
+      "value": "{\"past_experiences\": [{\"task\": \"remember the preferred backup path is ./data/backups\", \"success\": true}], \"relevant_facts\": [\"the preferred backup path is ./data/backups noted_as ...\"]}"
+    },
+    {
+      "label": "Task stored",
+      "value": "{\"episode_id\": \"example-episode-id\", \"topic\": \"the preferred backup path is ./data/backups\"}"
+    }
+  ]
+}

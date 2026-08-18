@@ -8,10 +8,6 @@ const stopButton = document.getElementById('emergency-stop');
 const stopStatus = document.getElementById('stop-status');
 const loadDemoButton = document.getElementById('load-demo');
 const clearIntentButton = document.getElementById('clear-intent');
-const healthPill = document.getElementById('status-health');
-
-const tabButtons = [...document.querySelectorAll('.tab-button')];
-const tabPanels = [...document.querySelectorAll('.tab-panel')];
 
 const state = {
   demoData: null,
@@ -23,15 +19,6 @@ const sanitizeText = (value) => value.replace(/[<>]/g, '').trim();
 const updateCounter = () => {
   counter.textContent = `${input.value.length} / 500`;
 };
-
-const setActiveTab = (tab) => {
-  tabButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.tab === tab));
-  tabPanels.forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.panel !== tab));
-};
-
-tabButtons.forEach((button) => {
-  button.addEventListener('click', () => setActiveTab(button.dataset.tab));
-});
 
 const renderActivity = (items) => {
   activityLog.innerHTML = '';
@@ -68,7 +55,16 @@ const renderMemory = (items) => {
 
 const prependActivity = (intent) => {
   const li = document.createElement('li');
-  li.innerHTML = `<h3>Intent submitted locally</h3><p>${intent}</p><span class="log-meta">${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC</span>`;
+  const title = document.createElement('h3');
+  const detail = document.createElement('p');
+  const meta = document.createElement('span');
+
+  title.textContent = 'Intent submitted locally';
+  detail.textContent = intent;
+  meta.textContent = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  meta.className = 'log-meta';
+
+  li.append(title, detail, meta);
   activityLog.prepend(li);
 };
 
@@ -76,11 +72,10 @@ const setEmergencyState = (isStopped) => {
   state.emergencyStopped = isStopped;
   stopStatus.classList.toggle('is-stopped', isStopped);
   stopStatus.textContent = isStopped
-    ? 'Emergency stop active. Submissions are paused.'
+    ? 'Emergency stop active. Clear the intent field, pause submissions, and review the local log before continuing.'
     : 'System ready. No emergency stop active.';
-  healthPill.textContent = isStopped ? 'Orchestrator: paused' : 'Orchestrator: demo-ready';
   input.disabled = isStopped;
-  document.getElementById('submit-intent').disabled = isStopped;
+  form.querySelector('#submit-intent').disabled = isStopped;
   if (isStopped) {
     input.value = '';
     updateCounter();
@@ -89,8 +84,21 @@ const setEmergencyState = (isStopped) => {
 };
 
 const loadDemoData = async () => {
-  const response = await fetch('./demo-data.json', { cache: 'no-store' });
-  const data = await response.json();
+  let data = null;
+  try {
+    const liveResponse = await fetch('./orchestrator-feed.json', { cache: 'no-store' });
+    if (liveResponse.ok) {
+      data = await liveResponse.json();
+    }
+  } catch (err) {
+    data = null;
+  }
+
+  if (!data || !Array.isArray(data.activity)) {
+    const response = await fetch('./demo-data.json', { cache: 'no-store' });
+    data = await response.json();
+  }
+
   state.demoData = data;
   renderActivity(data.activity);
   renderMemory(data.memory);
@@ -98,7 +106,9 @@ const loadDemoData = async () => {
 
 input.addEventListener('input', () => {
   updateCounter();
-  if (error.textContent) error.textContent = '';
+  if (error.textContent) {
+    error.textContent = '';
+  }
 });
 
 input.addEventListener('keydown', (event) => {
@@ -109,7 +119,9 @@ input.addEventListener('keydown', (event) => {
 });
 
 loadDemoButton.addEventListener('click', () => {
-  if (!state.demoData) return;
+  if (!state.demoData) {
+    return;
+  }
   input.value = state.demoData.demoIntent;
   updateCounter();
   input.focus();
@@ -129,14 +141,22 @@ stopButton.addEventListener('click', () => {
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
+
   if (state.emergencyStopped) {
-    error.textContent = 'Emergency stop is active.';
+    error.textContent = 'Emergency stop is active. Release it before submitting a new intent.';
     return;
   }
 
   const sanitizedIntent = sanitizeText(input.value);
+
   if (!sanitizedIntent) {
-    error.textContent = 'Enter an intent before submitting.';
+    error.textContent = 'Enter an intent before submitting. Plain local text only.';
+    input.focus();
+    return;
+  }
+
+  if (sanitizedIntent.length > 500) {
+    error.textContent = 'Intent is too long for this prototype. Keep it under 500 characters.';
     input.focus();
     return;
   }
@@ -144,13 +164,11 @@ form.addEventListener('submit', (event) => {
   prependActivity(sanitizedIntent);
   input.value = '';
   updateCounter();
-  error.textContent = 'Intent captured locally.';
-  setActiveTab('tasks');
+  error.textContent = 'Intent captured locally. Review the activity log for the new entry.';
 });
 
 loadDemoData().catch(() => {
   error.textContent = 'Unable to load local demo data. Check ui/shell/demo-data.json.';
-  healthPill.textContent = 'Orchestrator: unavailable';
 });
 
 updateCounter();

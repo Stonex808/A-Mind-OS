@@ -1,4 +1,4 @@
-"""Local-first orchestrator demo with deterministic verification, dispatch, and persistence."""
+"""Local-first orchestrator demo with deterministic verification and local persistence."""
 
 from __future__ import annotations
 
@@ -7,22 +7,22 @@ import json
 import os
 import re
 import socketserver
+import sqlite3
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from contract_registry import ContractRegistry
-from orchestrator_service import (
+from planner_worker import (
     CodeWorker,
-    ExecutionLogStore,
     LocalPlanner,
     MemoryWorker,
+    PlannerWorkerOrchestrator,
     ResearchWorker,
-    TaskDispatcher,
     WorkerRegistry,
 )
-from task_schema import TaskEnvelope
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_CORE = REPO_ROOT / "python_core"
@@ -31,8 +31,8 @@ if str(PYTHON_CORE) not in sys.path:
 
 from memory.memory_integration import CompleteAgentMemoryInterface  # noqa: E402
 
-DATA_DIR = Path(os.environ.get("REFOCUS_DEMO_DATA_DIR", REPO_ROOT / "data" / "demo"))
-MEMORY_DIR = Path(os.environ.get("REFOCUS_DEMO_MEMORY_ROOT", REPO_ROOT / "data" / "memory"))
+DATA_DIR = REPO_ROOT / "data" / "demo"
+MEMORY_DIR = Path(os.environ.get("REFOCUS_DEMO_MEMORY_ROOT", str(DATA_DIR / "memory")))
 RULES_PATH = Path(__file__).resolve().parent / "rules" / "local_rules.json"
 DEFAULT_SOCKET_PATH = DATA_DIR / "orchestrator.sock"
 INTENT_RE = re.compile(r"\s+")
@@ -80,21 +80,70 @@ class LocalVerifier:
         )
 
 
-
-class RunArtifactStore:
+class LocalArtifactStore:
     def __init__(self, data_dir: Path) -> None:
+        self.data_dir = data_dir
         self.runs_dir = data_dir / "runs"
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = data_dir / "orchestrator.db"
+        self._init_db()
 
-    def persist(self, payload: dict[str, object]) -> str:
+    def _init_db(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS orchestrator_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at REAL NOT NULL,
+                    source TEXT NOT NULL,
+                    raw_intent TEXT NOT NULL,
+                    normalized_intent TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    accepted INTEGER NOT NULL,
+                    reasons_json TEXT NOT NULL,
+                    artifact_path TEXT NOT NULL
+                )
+                """
+            )
+            conn.commit()
+
+    def persist_run(self, *, source: str, raw_intent: str, verification: VerificationResult, result: Dict[str, Any]) -> Dict[str, Any]:
         created_at = time.time()
-        path = self.runs_dir / f"run-{int(created_at * 1000)}.json"
-        with path.open("w", encoding="utf-8") as handle:
+        artifact_path = self.runs_dir / f"run-{int(created_at * 1000)}.json"
+        payload = {
+            "created_at": created_at,
+            "source": source,
+            "raw_intent": raw_intent,
+            "normalized_intent": verification.normalized_intent,
+            "action": verification.action,
+            "accepted": verification.accepted,
+            "reasons": verification.reasons,
+            "result": result,
+        }
+        with open(artifact_path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2)
-        try:
-            return str(path.relative_to(REPO_ROOT))
-        except ValueError:
-            return str(path)
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO orchestrator_runs (
+                    created_at, source, raw_intent, normalized_intent, action, accepted, reasons_json, artifact_path
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    created_at,
+                    source,
+                    raw_intent,
+                    verification.normalized_intent,
+                    verification.action,
+                    1 if verification.accepted else 0,
+                    json.dumps(verification.reasons),
+                    str(artifact_path.relative_to(REPO_ROOT)),
+                ),
+            )
+            conn.commit()
+        payload["artifact_path"] = str(artifact_path.relative_to(REPO_ROOT))
+        return payload
 
 
 class LocalOrchestratorDemo:
@@ -105,66 +154,78 @@ class LocalOrchestratorDemo:
             memory_root=MEMORY_DIR,
         )
         self.verifier = LocalVerifier(rules_path)
+        self.artifacts = LocalArtifactStore(data_dir)
         self.contract_registry = ContractRegistry()
         self.registerable_agents = self.contract_registry.contracts_for_registration()
-        self.artifacts = RunArtifactStore(data_dir)
-        self.dispatcher = TaskDispatcher(
-            planner=LocalPlanner(),
-            registry=WorkerRegistry(
-                [MemoryWorker(self.memory), ResearchWorker(), CodeWorker()]
-            ),
-            logs=ExecutionLogStore(data_dir),
-        )
+        self.planner = LocalPlanner()
+        self.worker_registry = WorkerRegistry()
+        self.memory_worker = MemoryWorker(self.memory)
+        self.research_worker = ResearchWorker(self.memory)
+        self.code_worker = CodeWorker(self.memory)
+        self.worker_registry.register(self.memory_worker)
+        self.worker_registry.register(self.research_worker)
+        self.worker_registry.register(self.code_worker)
+        self.planner_orchestrator = PlannerWorkerOrchestrator(self.planner, self.worker_registry)
         self._seed_local_context()
 
     def _seed_local_context(self) -> None:
         self.memory.learn_fact("orchestrator", "stores", "intent history in local sqlite")
-        self.memory.learn_fact(
-            "orchestrator",
-            "registers_agents_from",
-            ", ".join(sorted(self.registerable_agents)),
-        )
+        self.memory.learn_fact("orchestrator", "registers_agents_from", ", ".join(sorted(self.registerable_agents)))
         self.memory.learn_fact("memory", "persists", "context in repo-local json")
+        self.memory.define_concept(
+            "local demo",
+            "A deterministic offline workflow that reads an intent, verifies it, and persists local artifacts.",
+            "workflow",
+            examples=["remember to back up the data directory", "recall the last saved preference"],
+        )
 
-    def process_intent(self, raw_intent: str, source: str) -> dict[str, object]:
+    def process_intent(self, raw_intent: str, source: str) -> Dict[str, Any]:
         verification = self.verifier.verify(raw_intent)
-        if not verification.accepted:
-            payload = {
-                "source": source,
-                "raw_intent": raw_intent,
-                "normalized_intent": verification.normalized_intent,
-                "action": verification.action,
-                "accepted": False,
-                "reasons": verification.reasons,
-                "result": {
-                    "status": "rejected",
-                    "message": "Intent rejected by local verifier.",
+        if verification.accepted:
+            task_id = f"task-{int(time.time() * 1000)}"
+            decision, worker_result, planner_summary = self.planner_orchestrator.execute(
+                task_id=task_id,
+                intent=verification.normalized_intent or raw_intent,
+                action=verification.action,
+            )
+            outcome = {
+                "status": worker_result.status,
+                "message": worker_result.summary,
+                "planner_decision": {
+                    "worker_name": decision.worker_name,
+                    "reason": decision.reason,
+                    "budget": decision.budget,
+                },
+                "worker_result": {
+                    "worker_name": worker_result.worker_name,
+                    "status": worker_result.status,
+                    "output": worker_result.output,
+                    "errors": worker_result.errors,
+                },
+                "planner_summary": {
+                    "status": planner_summary.status,
+                    "summary_text": planner_summary.summary_text,
+                    "highlighted_outputs": planner_summary.highlighted_outputs,
                 },
             }
-            payload["artifact_path"] = self.artifacts.persist(payload)
-            return payload
-
-        task = TaskEnvelope(
-            kind="recall" if verification.action == "recall" else "memory",
-            content=verification.normalized_intent,
-            source=source.replace("/", ":").replace(" ", "_")[:64] or "stdin",
-            metadata={"action": verification.action},
+            if "episode_id" in worker_result.output:
+                outcome["episode_id"] = worker_result.output["episode_id"]
+            if "topic" in worker_result.output:
+                outcome["topic"] = worker_result.output["topic"]
+            if "memory_recall" in worker_result.output:
+                outcome["memory_recall"] = worker_result.output["memory_recall"]
+        else:
+            outcome = {
+                "status": "rejected",
+                "message": "Intent rejected by local verifier.",
+                "memory_recall": self.memory.recall_for_situation(verification.normalized_intent or raw_intent),
+            }
+        return self.artifacts.persist_run(
+            source=source,
+            raw_intent=raw_intent,
+            verification=verification,
+            result=outcome,
         )
-        routed = self.dispatcher.dispatch(task)
-        payload = {
-            "source": source,
-            "raw_intent": raw_intent,
-            "normalized_intent": verification.normalized_intent,
-            "action": verification.action,
-            "accepted": True,
-            "reasons": [],
-            "result": routed["result"],
-            "routing": routed["routing"],
-            "event": routed["event"],
-            "task": routed["task"],
-        }
-        payload["artifact_path"] = self.artifacts.persist(payload)
-        return payload
 
 
 class IntentSocketHandler(socketserver.StreamRequestHandler):

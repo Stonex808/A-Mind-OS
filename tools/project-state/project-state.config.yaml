@@ -1,0 +1,14 @@
+schema_path: tools/project-state/schema/project-state.schema.json
+sources:
+  authority_matrix: governance/01_AUTHORITY_MATRIX.yaml
+  project_registry: governance/02_PROJECT_REGISTRY.yaml
+  pending_packets:
+  - governance/pending/*.pending.json
+  release_manifests:
+  - artifacts/manifests/*.json
+  verification_reports:
+  - artifacts/verification/*.md
+  planning_overlay: tools/project-state/planning/project-state.plan.yaml
+outputs:
+  snapshot: generated/project-state.snapshot.yaml
+  markdown: generated/PROJECT_STATE.md
