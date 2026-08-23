@@ -38,4 +38,4 @@ Contracts are plain JSON files so they are easy to audit, diff, and back up loca
 
 ## Shared task schema
 
-MVP task intake for the orchestrator uses `task_envelope.v1.json` as the shared wire contract for task routing (`task_id`, `kind`, `content`, `source`, and metadata).
+Local task intake uses `task_envelope.v1.json` as the shared wire contract for task routing (`task_id`, `kind`, `content`, `source`, and metadata). Its executable validation lives in `services/orchestrator/task_schema.py` and is covered by `tests/test_orchestrator.py`.

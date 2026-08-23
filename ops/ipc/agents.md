@@ -1,14 +1,7 @@
-    # IPC Message Bus & Envelope Schema — agents.md
+# IPC message bus
 
-    **Role:** Signed Message Transport & Semantic Spine  
-    **Dependencies:** python >= 3.11, pydantic, nacl (ed25519), sqlite or lite index
+**Status:** planned. The current Unix socket in `services/orchestrator/local_demo.py` is an unauthenticated demo transport, not the production bus.
 
-    ## Execution Plan
-    1. Define `Envelope v1`: id, ts, src, dst, verb, payload, sig, budget.
-2. Validate at ingress; forward only after LG‑A/LG‑C stamps.
-3. Integrate GRACE: `/embed`, `/search`, `/log_and_embed` hooks.
-4. Provide idempotent replay buffer for audits.
+The next slice must define one signed envelope, validate it before dispatch, require a scoped `AdmissionDecision`, reject expiration/replay/tampering, and append evidence without leaking sensitive content. Extend `config/contracts/task_envelope.v1.json` and the existing harness seams; do not introduce a competing envelope or dispatcher.
 
-    ## Verification
-    - Envelopes verify signature
-- Replay reproduces outputs deterministically
+Acceptance belongs in `tests/` and must run through `scripts/verify-repo.sh` before this surface is labeled runnable.

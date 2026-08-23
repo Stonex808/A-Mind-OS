@@ -1,8 +1,22 @@
+# Python caches and local environments
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.venv/
+venv/
 
-data/demo/
-data/memory/episodic_local/
-data/memory/semantic_local/
-data/memory/procedural/
-green_loop_result.json
+# Runtime state is local to each device
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.sock
+
+# Generated shell activity feed (the UI falls back to demo-data.json)
+ui/shell/orchestrator-feed.json
+
+# Editor and operating-system noise
+.DS_Store
+.idea/
+.vscode/

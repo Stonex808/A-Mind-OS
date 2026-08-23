@@ -8,10 +8,11 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from refocus_core.logging import setup_logging
+from ..refocus_core.logging import setup_logging
+from ..refocus_core.persistence import sanitize_for_local_persistence
 
 MEMORY_ROOT = Path(__file__).resolve().parents[2] / "data" / "memory"
-logger = setup_logging("procedural-memory")
+logger = setup_logging("procedural-memory", level="WARNING")
 
 
 @dataclass
@@ -42,14 +43,18 @@ class Procedure:
 class ProceduralMemory:
     """Persistent storage for procedures."""
 
-    def __init__(self, persist_directory: str | Path | None = None) -> None:
+    def __init__(self, persist_directory: str | Path | None = None, sensitive_content_mode: str = "redact") -> None:
         self.persist_dir = Path(persist_directory) if persist_directory is not None else MEMORY_ROOT / "procedural"
+        self.sensitive_content_mode = sensitive_content_mode
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self.procedures: Dict[str, Procedure] = {}
         self._load_procedures()
         logger.info("procedural_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
 
     def store_procedure(self, procedure: Procedure) -> str:
+        payload = sanitize_for_local_persistence(asdict(procedure), self.sensitive_content_mode)
+        payload["steps"] = [ActionStep(**step) for step in payload["steps"]]
+        procedure = Procedure(**payload)
         if not procedure.id:
             procedure.id = str(uuid.uuid4())
         self.procedures[procedure.id] = procedure

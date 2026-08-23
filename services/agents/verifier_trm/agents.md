@@ -1,16 +1,7 @@
-    # Tiny Recursive Model (TRM) Verifier — agents.md
+# TRM verifier agent
 
-    **Role:** Pre‑LLM Data Validator  
-    **Dependencies:** python >= 3.11, jsonschema, regex
+**Status:** planned service. The currently runnable verifier is the deterministic rules boundary in `services/orchestrator/local_demo.py`, and agent contracts are validated by `contract_registry.py`.
 
-    ## Execution Plan
-    1. Implement `verify(data, constraints, depth=0)` with `depth<=3`.
-2. Handlers: schema/type/regex/logic.
-3. Unix socket: `/run/user/$UID/refocus/verifier.sock`.
-4. Publish `verifier_trm.json` contract (semver + schemas).
-5. Register with Orchestrator on boot.
+Future work may add bounded schema, regex, and logic verification behind the admitted IPC contract. It must not replace or bypass current fail-closed validation, and any third-party dependency must be declared, locked, justified, and tested.
 
-    ## Verification
-    - Valid inputs → `true`
-- Invalid inputs → `false` + reason
-- Authenticated handshake with Orchestrator
+Acceptance requires valid/invalid/depth-limit tests, authenticated registration evidence, and integration into `scripts/verify-repo.sh`.

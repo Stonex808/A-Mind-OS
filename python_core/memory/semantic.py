@@ -26,9 +26,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - import guard
 else:  # pragma: no cover - import guard
     _SENTENCE_TRANSFORMER_ERROR = None
 
-from refocus_core.logging import setup_logging
+from ..refocus_core.logging import setup_logging
 
-logger = setup_logging("semantic-memory")
+logger = setup_logging("semantic-memory", level="WARNING")
 
 
 @dataclass
@@ -59,7 +59,7 @@ class Concept:
 class SemanticMemory:
     """Semantic memory combining vector search with a simple knowledge graph."""
 
-    def __init__(self, persist_directory: str = "./data/memory/semantic") -> None:
+    def __init__(self, persist_directory: str = "./data/user/memory/semantic_vector") -> None:
         if chromadb is None or Settings is None:  # pragma: no cover
             raise ModuleNotFoundError(
                 "chromadb is required for SemanticMemory. Install it to enable local vector storage."
@@ -92,7 +92,7 @@ class SemanticMemory:
         self.knowledge_graph: Dict[str, List[Tuple[str, str]]] = {}
         self._load_knowledge_graph()
 
-        logger.info("semantic_memory_initialized", persist_directory=str(self.persist_dir))
+        logger.info("semantic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
 
     def store_fact(self, fact: Fact) -> str:
         if not fact.id:

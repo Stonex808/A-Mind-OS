@@ -1,4 +1,4 @@
-"""Local structured audit storage for Refocus-OS.
+"""Local structured audit storage for A-Mind-OS.
 
 Audit data is stored locally in either JSONL or SQLite using Python's stdlib.
 That keeps the implementation offline by default and easy to inspect with common

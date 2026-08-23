@@ -1,23 +1,5 @@
-"""Refocus-OS Python core utilities."""
+"""Shared, standard-library-only utilities for A-Mind-OS."""
 
-from __future__ import annotations
-
-from .logging import setup_logging
-
-__all__ = ["setup_logging", "ContractValidationError", "ContractValidator", "ValidationResult"]
-
-
-def __getattr__(name: str):
-    if name in {"ContractValidationError", "ContractValidator", "ValidationResult"}:
-        from .contracts import ContractValidationError, ContractValidator, ValidationResult
-
-        exports = {
-            "ContractValidationError": ContractValidationError,
-            "ContractValidator": ContractValidator,
-            "ValidationResult": ValidationResult,
-        }
-        return exports[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 from .audit import AuditEvent, LocalAuditStore
 from .intent_security import (
     ExecutionPolicy,
@@ -30,6 +12,15 @@ from .intent_security import (
     SanitizationResult,
 )
 from .logging import setup_logging
+from .persistence import (
+    DemoPersistenceSettings,
+    MemoryPersistenceSettings,
+    PersistenceConfigurationError,
+    SensitiveContentError,
+    load_demo_persistence_settings,
+    load_memory_persistence_settings,
+    sanitize_for_local_persistence,
+)
 
 __all__ = [
     "AuditEvent",
@@ -41,6 +32,13 @@ __all__ = [
     "IntentSchemaValidator",
     "IntentValidationError",
     "LocalAuditStore",
+    "DemoPersistenceSettings",
+    "MemoryPersistenceSettings",
+    "PersistenceConfigurationError",
     "SanitizationResult",
+    "SensitiveContentError",
+    "load_demo_persistence_settings",
+    "load_memory_persistence_settings",
+    "sanitize_for_local_persistence",
     "setup_logging",
 ]

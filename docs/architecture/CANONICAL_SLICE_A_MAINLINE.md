@@ -16,6 +16,8 @@ This slice integrates the previously divergent work without collapsing provenanc
 - Harness v0.1.0: runtime-immutable constitutional kernel, versioned evolvable userland, typed harness lineage/evaluation/promotion/rollback records.
 - Refocus ancestry: three retained interfaces only: lifecycle supervision, deterministic tool brokerage, and Compute Economist resource accounting.
 
+The 2026-08-23 maintenance consolidation also retained the unique value from superseded PRs #11 and #15: configurable local persistence, redaction/refusal, retention, strict task validation, and structured task-event logging. Their parallel docs, planner path, and stale tests were deliberately not retained.
+
 ## Authority boundary
 
 Selecting the repository resolves the repository-lineage blocker. It does **not** fabricate missing governance state. The Slice A production gate must continue to fail closed until complete current copies of these sources exist:
@@ -49,7 +51,7 @@ Refine: budgets are hard constraints, consistent with Harness lexicographic gate
 
 - `python_core/refocus_core/harness_contracts.py`: typed HarnessVersion, HarnessDelta, EvaluationContract, PromotionReceipt, RollbackPointer and lifecycle states.
 - `services/orchestrator/harness_runtime.py`: scoped admission, lifecycle supervision, ToolBroker, Compute Economist.
-- `services/orchestrator/test_harness_runtime.py`: fail-closed tests for scope, budget and health behavior.
+- `tests/test_core.py`: fail-closed tests for scope, budget, health, ingress, and contract behavior.
 - `tools/project-state/`: Slice A compiler/source gate remains the project-state truth projection boundary.
 
 ## Integration invariant

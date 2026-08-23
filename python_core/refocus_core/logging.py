@@ -1,79 +1,48 @@
-"""Structured logging helpers for Refocus-OS Python components."""
+"""Idempotent structured logging for A-Mind-OS components."""
 
 from __future__ import annotations
 
 import logging
-import sys
+import json
 from pathlib import Path
-from typing import Optional
-
-try:  # pragma: no cover - optional dependency
-    import structlog  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover - fallback when structlog missing
-    structlog = None  # type: ignore[assignment]
+from typing import Any, Optional
 
 
-def _ensure_structlog_configured(service_name: str, log_dir: Optional[Path], level: str) -> logging.Logger:
-    """Configure a structlog logger when structlog is available."""
-
-    assert structlog is not None  # nosec: B101 - ensured by caller
-
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-    ]
-    if log_dir:
-        processors.append(structlog.processors.JSONRenderer())
-    else:
-        processors.append(structlog.dev.ConsoleRenderer())
-
-    structlog.configure(
-        processors=processors,
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
-    )
-
-    handlers = [logging.StreamHandler(sys.stdout)]
-    if log_dir:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / f"{service_name}.log"
-        handlers.append(logging.FileHandler(log_file))
-
-    logging.basicConfig(format="%(message)s", level=getattr(logging, level.upper(), logging.INFO), handlers=handlers)
-
-    logger = structlog.get_logger(service_name)
-    logger.info("logging_initialized", service=service_name, level=level)
-    return logger
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, Any] = {
+            "time": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+            "service": record.name,
+            "level": record.levelname.lower(),
+            "event": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
 
 def setup_logging(service_name: str, log_dir: Optional[Path] = None, level: str = "INFO") -> logging.Logger:
-    """Return a structured logger for the given service.
+    """Return one logger per service without modifying the process root logger."""
 
-    Falls back to the standard library's :mod:`logging` when ``structlog`` is not
-    available so that modules can be imported without optional dependencies.
-    """
-
-    if structlog is not None:
-        return _ensure_structlog_configured(service_name, log_dir, level)
-
-    logging.basicConfig(
-        stream=sys.stdout,
-        level=getattr(logging, level.upper(), logging.INFO),
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
     logger = logging.getLogger(service_name)
-    logger.info(
-        "logging_initialized",
-        extra={"service": service_name, "level": level, "adapter": "stdlib"},
-    )
+    logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+    logger.propagate = False
+    target = str(Path(log_dir).resolve()) if log_dir else "stderr"
+    if getattr(logger, "_a_mind_target", None) == target:
+        return logger
+
+    for existing in logger.handlers:
+        existing.close()
+    logger.handlers.clear()
+    handler: logging.Handler
+    if log_dir:
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(Path(log_dir) / f"{service_name}.jsonl", encoding="utf-8")
+    else:
+        handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter())
+    logger.addHandler(handler)
+    logger._a_mind_target = target  # type: ignore[attr-defined]
     return logger
 
 

@@ -1,14 +1,7 @@
-    # GRACE Memory Service — agents.md
+# GRACE memory service
 
-    **Role:** Embeddings, Retrieval, & Audit Spine  
-    **Dependencies:** python >= 3.11, sentence‑transformers, faiss-cpu or chromadb
+**Status:** planned. The runnable memory implementation is `python_core/memory/memory_integration.py`; do not create another local store here.
 
-    ## Execution Plan
-    1. Load embedding model; init index & metadata store.
-2. Implement `/embed`, `/log_and_embed`, `/search` APIs.
-3. Enforce PII‑redaction, TTLs, hot/warm/cold tiers.
-4. Unit: `grace.service` with `Restart=always`.
+This directory preserves the future retrieval-service boundary: embeddings, hybrid search, reranking, TTLs, and audit integration. Any implementation must reuse the canonical persistence policy, keep data local by default, declare and lock new dependencies, and add evaluation evidence showing that it improves on deterministic JSON recall.
 
-    ## Verification
-    - Embeddings correct dims
-- Semantic search retrieves expected entries
+Start only after the admitted IPC slice in `TASKS.md`. Verification must cover redaction/refusal, retention, retrieval quality, restart behavior, and a no-network mode.

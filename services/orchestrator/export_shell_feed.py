@@ -1,13 +1,16 @@
-"""Export latest orchestrator run artifacts into ui/shell/orchestrator-feed.json."""
+"""Export recent run artifacts for the optional static shell preview."""
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RUNS_DIR = REPO_ROOT / "data" / "demo" / "runs"
-OUT_PATH = REPO_ROOT / "ui" / "shell" / "orchestrator-feed.json"
+RUNS_DIR = Path(os.environ.get("REFOCUS_DEMO_DATA_DIR", REPO_ROOT / "data" / "demo")) / "runs"
+OUT_PATH = Path(
+    os.environ.get("REFOCUS_DEMO_FEED_PATH", REPO_ROOT / "ui" / "shell" / "orchestrator-feed.json")
+)
 
 
 def main() -> int:
@@ -34,8 +37,13 @@ def main() -> int:
                 }
             )
 
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps({"activity": activity, "memory": memory}, indent=2), encoding="utf-8")
-    print(f"wrote {OUT_PATH.relative_to(REPO_ROOT)} from {len(latest)} run artifact(s)")
+    try:
+        display_path = OUT_PATH.relative_to(REPO_ROOT)
+    except ValueError:
+        display_path = OUT_PATH
+    print(f"wrote {display_path} from {len(latest)} run artifact(s)")
     return 0
 
 

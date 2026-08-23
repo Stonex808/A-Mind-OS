@@ -27,9 +27,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - import guard
 else:  # pragma: no cover - import guard
     _SENTENCE_TRANSFORMER_ERROR = None
 
-from refocus_core.logging import setup_logging
+from ..refocus_core.logging import setup_logging
 
-logger = setup_logging("episodic-memory")
+logger = setup_logging("episodic-memory", level="WARNING")
 
 
 @dataclass
@@ -53,7 +53,7 @@ class Episode:
 class EpisodicMemory:
     """Persistent episodic memory backed by ChromaDB."""
 
-    def __init__(self, persist_directory: str = "./data/memory/episodic") -> None:
+    def __init__(self, persist_directory: str = "./data/user/memory/episodic_vector") -> None:
         if chromadb is None or Settings is None:  # pragma: no cover - runtime guard
             raise ModuleNotFoundError(
                 "chromadb is required for EpisodicMemory. Install it locally to keep data offline."
@@ -82,7 +82,7 @@ class EpisodicMemory:
         self.episodes_store = self.persist_dir / "episodes"
         self.episodes_store.mkdir(parents=True, exist_ok=True)
 
-        logger.info("episodic_memory_initialized", persist_directory=str(self.persist_dir))
+        logger.info("episodic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
 
     def has_episode(self, episode_id: Optional[str]) -> bool:
         """Return ``True`` when the episode payload already exists on disk."""

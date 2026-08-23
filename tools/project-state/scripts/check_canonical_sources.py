@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 """Fail closed when complete canonical Matrix/Registry inputs are absent or look partial."""
-from pathlib import Path
 import sys
-
-try:
-    import yaml
-except ImportError:
-    print("CANONICAL_SOURCE_GATE_BLOCKED: PyYAML is not installed")
-    raise SystemExit(2)
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 paths = [
@@ -17,6 +11,12 @@ paths = [
 missing = [str(path.relative_to(ROOT)) for path in paths if not path.exists()]
 if missing:
     print("CANONICAL_SOURCE_GATE_BLOCKED: missing " + ", ".join(missing))
+    raise SystemExit(2)
+
+try:
+    import yaml
+except ImportError:
+    print("CANONICAL_SOURCE_GATE_BLOCKED: PyYAML is required when canonical inputs exist")
     raise SystemExit(2)
 
 matrix = yaml.safe_load(paths[0].read_text(encoding="utf-8"))

@@ -1,24 +1,26 @@
 # Orchestrator Service — agents.md
 
-**Status:** implemented now (with a narrower local-first scope than the long-term architecture)  
-**Best contributor on-ramp:** run `scripts/dev.sh` or `python3 services/orchestrator/local_demo.py --intent-file ./data/demo/demo-intent.txt` before extending blueprint-only pieces.  
-**Current runnable scope:** local intent validation, local JSON/SQLite persistence, deterministic recall, optional local Unix socket demo.  
-**Long-term scope:** full IPC bus integration, authenticated agent sessions, MATPO planning, and systemd-managed orchestration.
+**Status:** implemented now (with a narrower local-first scope than the long-term architecture)
 
-**Role:** System Orchestrator  
-**Dependencies (target architecture):** python >= 3.11, fastapi, uvicorn, py-unix-socket, numpy, systemd (user)
+**Best contributor on-ramp:** run `scripts/verify-repo.sh` before editing.
+
+**Current runnable scope:** strict local intent validation, typed tasks, deterministic planner/worker routing, JSON/SQLite persistence, recall, retention, and an optional Unix socket demo.
+
+**Long-term scope:** admitted signed IPC, authenticated agent sessions, sandboxed workers, and systemd-managed orchestration.
+
+**Role:** System Orchestrator
+
+**Dependencies now:** Python 3.11+ standard library.
+
+**Dependencies later:** choose only after the admitted IPC contract is tested.
 
 ## Execution Plan
-1. Keep the local demo path working offline first; it is the reference implementation for today's contributor workflow.
-2. Initialize IPC bus at `/run/user/$UID/refocus/orch.sock` (asyncio + FastAPI).
-3. Implement Priority Queue + AlphaMonk scheduler using `config/economist.yaml`.
-4. Build IFN (weighted averaging + TRM confidence).
-5. Implement MATPO planner generating DAG per contract schema.
-6. Load & validate agent contracts from `/etc/refocus/contracts`.
-7. ed25519 handshake with rotating nonces for agent sessions.
-8. Install as `orchestrator.service` with `Restart=always` and `After=lg_a_langsec.service lg_c_syssec.service`.
+1. Keep `local_demo.py`, `task_schema.py`, and `orchestrator_service.py` as the only implementation path.
+2. Add admitted, signed IPC without bypassing `harness_runtime.py`.
+3. Add replay/tampering tests before a non-demo worker.
+4. Wire OS-process supervision only behind the lifecycle contract.
 
 ## Verification
-- `scripts/dev.sh` completes a store + recall flow locally.
-- `python3 services/orchestrator/local_demo.py --stdin` accepts local intents and persists artifacts.
-- Future scope: `/healthz` returns `status: ok`, authenticated socket connections succeed, and contracts load with LG‑A attestation.
+- `scripts/verify-repo.sh` passes without third-party packages.
+- Redaction, refusal, retention, routing, recall, and event logging are covered under `tests/`.
+- Future scope must add authentication, replay protection, and sandbox evidence before being labeled runnable.

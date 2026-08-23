@@ -1,4 +1,4 @@
-"""Integrated ArtHippoNet memory system with local-first fallbacks."""
+"""Local-first semantic, episodic, and procedural memory integration."""
 
 from __future__ import annotations
 
@@ -8,139 +8,123 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-MEMORY_ROOT = Path(__file__).resolve().parents[2] / "data" / "memory"
-
-from refocus_core.logging import setup_logging
-
+from ..refocus_core.logging import setup_logging
+from ..refocus_core.persistence import (
+    load_memory_persistence_settings,
+    sanitize_for_local_persistence,
+)
 from .episodic import Episode, EpisodicMemory
-from .procedural import ProceduralMemory, Procedure
+from .procedural import ProceduralMemory
 from .semantic import Concept, Fact, SemanticMemory
 
-logger = setup_logging("memory-integration")
-
+logger = setup_logging("memory-integration", level="WARNING")
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
-class LocalSemanticMemory:
-    """JSON-backed semantic fallback that avoids optional vector dependencies."""
+def _write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(path)
 
-    def __init__(self, persist_directory: str | Path | None = None) -> None:
-        self.persist_dir = Path(persist_directory) if persist_directory is not None else MEMORY_ROOT / "semantic_local"
+
+class LocalSemanticMemory:
+    """Small JSON-backed semantic store used by the default offline path."""
+
+    def __init__(self, persist_directory: str | Path, sensitive_content_mode: str = "redact") -> None:
+        self.persist_dir = Path(persist_directory)
         self.persist_dir.mkdir(parents=True, exist_ok=True)
+        self.sensitive_content_mode = sensitive_content_mode
         self.facts_path = self.persist_dir / "facts.json"
         self.concepts_path = self.persist_dir / "concepts.json"
-        self.facts: List[Fact] = self._load_facts()
-        self.concepts: List[Concept] = self._load_concepts()
-        logger.info("local_semantic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
+        self.facts = self._load(self.facts_path, Fact)
+        self.concepts = self._load(self.concepts_path, Concept)
 
     def store_fact(self, fact: Fact) -> str:
+        clean = Fact(**sanitize_for_local_persistence(asdict(fact), self.sensitive_content_mode))
         for existing in self.facts:
-            if (existing.subject, existing.predicate, existing.object) == (fact.subject, fact.predicate, fact.object):
+            if (existing.subject, existing.predicate, existing.object) == (
+                clean.subject,
+                clean.predicate,
+                clean.object,
+            ):
                 return existing.id or ""
-        if not fact.id:
-            fact.id = str(uuid.uuid4())
-        if not fact.timestamp:
-            fact.timestamp = time.time()
-        self.facts.append(fact)
-        self._save_facts()
-        return fact.id
+        clean.id = clean.id or str(uuid.uuid4())
+        clean.timestamp = clean.timestamp or time.time()
+        self.facts.append(clean)
+        _write_json(self.facts_path, [asdict(item) for item in self.facts])
+        return clean.id
 
     def store_concept(self, concept: Concept) -> str:
+        clean = Concept(**sanitize_for_local_persistence(asdict(concept), self.sensitive_content_mode))
         for existing in self.concepts:
-            if existing.name == concept.name and existing.definition == concept.definition:
+            if (existing.name, existing.definition) == (clean.name, clean.definition):
                 return existing.id or ""
-        if not concept.id:
-            concept.id = str(uuid.uuid4())
-        self.concepts.append(concept)
-        self._save_concepts()
-        return concept.id
+        clean.id = clean.id or str(uuid.uuid4())
+        self.concepts.append(clean)
+        _write_json(self.concepts_path, [asdict(item) for item in self.concepts])
+        return clean.id
 
-    def query_facts(self, query: str, n_results: int = 5) -> List[Fact]:
+    def query_facts(self, query: str, n_results: int = 5) -> list[Fact]:
         scored = sorted(
-            ((self._score_text(query, f"{fact.subject} {fact.predicate} {fact.object}"), fact) for fact in self.facts),
-            key=lambda item: item[0],
+            ((self._score(query, f"{item.subject} {item.predicate} {item.object}"), item) for item in self.facts),
+            key=lambda pair: pair[0],
             reverse=True,
         )
-        return [fact for score, fact in scored[:n_results] if score > 0]
+        return [item for score, item in scored[:n_results] if score]
 
-    def query_concepts(self, query: str, n_results: int = 3) -> List[Concept]:
+    def query_concepts(self, query: str, n_results: int = 3) -> list[Concept]:
         scored = sorted(
-            ((self._score_text(query, f"{concept.name} {concept.definition}"), concept) for concept in self.concepts),
-            key=lambda item: item[0],
+            ((self._score(query, f"{item.name} {item.definition}"), item) for item in self.concepts),
+            key=lambda pair: pair[0],
             reverse=True,
         )
-        return [concept for score, concept in scored[:n_results] if score > 0]
+        return [item for score, item in scored[:n_results] if score]
 
     def learn_from_text(self, text: str, source: str = "learned") -> None:
-        for sentence in [segment.strip() for segment in text.split(".") if segment.strip()]:
+        for sentence in (part.strip() for part in text.split(".")):
             if " is " not in sentence:
                 continue
-            subject, remainder = sentence.split(" is ", 1)
-            self.store_fact(
-                Fact(
-                    id=None,
-                    subject=subject.strip(),
-                    predicate="is",
-                    object=remainder.strip(),
-                    confidence=0.8,
-                    source=source,
-                    timestamp=time.time(),
-                )
-            )
+            subject, value = sentence.split(" is ", 1)
+            self.store_fact(Fact(None, subject.strip(), "is", value.strip(), 0.8, source, time.time()))
 
-    def get_statistics(self) -> Dict[str, Any]:
-        return {
-            "total_facts": len(self.facts),
-            "total_concepts": len(self.concepts),
-            "backend": "json-local",
-        }
-
-    def _load_facts(self) -> List[Fact]:
-        if not self.facts_path.exists():
-            return []
-        with open(self.facts_path, "r", encoding="utf-8") as handle:
-            return [Fact(**item) for item in json.load(handle)]
-
-    def _save_facts(self) -> None:
-        with open(self.facts_path, "w", encoding="utf-8") as handle:
-            json.dump([asdict(fact) for fact in self.facts], handle, indent=2)
-
-    def _load_concepts(self) -> List[Concept]:
-        if not self.concepts_path.exists():
-            return []
-        with open(self.concepts_path, "r", encoding="utf-8") as handle:
-            return [Concept(**item) for item in json.load(handle)]
-
-    def _save_concepts(self) -> None:
-        with open(self.concepts_path, "w", encoding="utf-8") as handle:
-            json.dump([asdict(concept) for concept in self.concepts], handle, indent=2)
+    def get_statistics(self) -> dict[str, Any]:
+        return {"total_facts": len(self.facts), "total_concepts": len(self.concepts), "backend": "json-local"}
 
     @staticmethod
-    def _score_text(query: str, candidate: str) -> int:
-        query_tokens = set(_TOKEN_RE.findall(query.lower()))
-        candidate_tokens = set(_TOKEN_RE.findall(candidate.lower()))
-        return len(query_tokens & candidate_tokens)
+    def _load(path: Path, model: type[Any]) -> list[Any]:
+        if not path.exists():
+            return []
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise ValueError(f"{path} must contain a JSON array")
+        return [model(**item) for item in payload]
+
+    @staticmethod
+    def _score(query: str, candidate: str) -> int:
+        return len(set(_TOKEN_RE.findall(query.lower())) & set(_TOKEN_RE.findall(candidate.lower())))
 
 
 class LocalEpisodicMemory:
-    """JSON-backed episodic fallback that uses token overlap for recall."""
+    """JSON-backed episodic store with deterministic token-overlap recall."""
 
-    def __init__(self, persist_directory: str | Path | None = None) -> None:
-        self.persist_dir = Path(persist_directory) if persist_directory is not None else MEMORY_ROOT / "episodic_local"
-        self.persist_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, persist_directory: str | Path, sensitive_content_mode: str = "redact") -> None:
+        self.persist_dir = Path(persist_directory)
         self.episodes_store = self.persist_dir / "episodes"
         self.episodes_store.mkdir(parents=True, exist_ok=True)
-        logger.info("local_episodic_memory_initialized", extra={"persist_directory": str(self.persist_dir)})
+        self.sensitive_content_mode = sensitive_content_mode
+
+    def has_episode(self, episode_id: Optional[str]) -> bool:
+        return bool(episode_id and (self.episodes_store / f"{episode_id}.json").exists())
 
     def store_episode(self, episode: Episode) -> str:
-        if not episode.id:
-            episode.id = str(uuid.uuid4())
-        path = self.episodes_store / f"{episode.id}.json"
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump(asdict(episode), handle, indent=2)
-        return episode.id
+        clean = Episode(**sanitize_for_local_persistence(asdict(episode), self.sensitive_content_mode))
+        clean.id = clean.id or str(uuid.uuid4())
+        _write_json(self.episodes_store / f"{clean.id}.json", asdict(clean))
+        episode.id = clean.id
+        return clean.id
 
     def retrieve_similar(
         self,
@@ -148,114 +132,103 @@ class LocalEpisodicMemory:
         agent_id: str,
         n_results: int = 3,
         success_only: bool = False,
-    ) -> List[Episode]:
-        matches: List[tuple[int, Episode]] = []
+    ) -> list[Episode]:
+        matches: list[tuple[int, Episode]] = []
         for path in self.episodes_store.glob("*.json"):
-            with open(path, "r", encoding="utf-8") as handle:
-                episode = Episode(**json.load(handle))
-            if episode.agent_id != agent_id:
+            episode = Episode(**json.loads(path.read_text(encoding="utf-8")))
+            if episode.agent_id != agent_id or (success_only and not episode.success):
                 continue
-            if success_only and not episode.success:
-                continue
-            search_text = " ".join([episode.task, episode.outcome, *episode.actions, *episode.observations])
-            score = LocalSemanticMemory._score_text(query, search_text)
-            if score > 0:
+            candidate = " ".join([episode.task, episode.outcome, *episode.actions, *episode.observations])
+            score = LocalSemanticMemory._score(query, candidate)
+            if score:
                 matches.append((score, episode))
-        matches.sort(key=lambda item: (item[0], item[1].timestamp), reverse=True)
+        matches.sort(key=lambda pair: (pair[0], pair[1].timestamp), reverse=True)
         return [episode for _, episode in matches[:n_results]]
 
-    def get_statistics(self, agent_id: Optional[str] = None) -> Dict[str, Any]:
-        episodes = []
-        for path in self.episodes_store.glob("*.json"):
-            with open(path, "r", encoding="utf-8") as handle:
-                episodes.append(json.load(handle))
+    def get_statistics(self, agent_id: Optional[str] = None) -> dict[str, Any]:
+        payloads = [json.loads(path.read_text(encoding="utf-8")) for path in self.episodes_store.glob("*.json")]
         if agent_id is not None:
-            episodes = [episode for episode in episodes if episode.get("agent_id") == agent_id]
-        total = len(episodes)
-        successes = sum(1 for episode in episodes if episode.get("success"))
-        failures = total - successes
+            payloads = [item for item in payloads if item.get("agent_id") == agent_id]
+        successes = sum(bool(item.get("success")) for item in payloads)
+        total = len(payloads)
         return {
             "total_episodes": total,
             "successful": successes,
-            "failed": failures,
+            "failed": total - successes,
             "success_rate": successes / total if total else 0.0,
             "backend": "json-local",
         }
 
 
 class ArtHippoNet:
-    """Complete memory system combining episodic, semantic, and procedural stores."""
+    """Combined memory stack with optional local vector backends."""
 
-    def __init__(self, agent_id: str, prefer_local_fallback: bool = False, memory_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        agent_id: str,
+        prefer_local_fallback: bool = False,
+        memory_root: str | Path | None = None,
+        sensitive_content_mode: str | None = None,
+    ) -> None:
         self.agent_id = agent_id
-        self.memory_root = Path(memory_root) if memory_root is not None else MEMORY_ROOT
-        self.episodic, self.semantic = self._build_memory_backends(prefer_local_fallback=prefer_local_fallback)
-        self.procedural = ProceduralMemory(self.memory_root / "procedural")
-        logger.info("arthipponet_initialized", extra={"agent_id": agent_id})
-
-    def _build_memory_backends(self, prefer_local_fallback: bool = False) -> tuple[Any, Any]:
-        if not prefer_local_fallback:
-            try:
-                return EpisodicMemory(), SemanticMemory()
-            except ModuleNotFoundError as exc:
-                logger.warning(
-                    "vector_memory_unavailable_using_local_fallback",
-                    extra={"reason": str(exc), "agent_id": self.agent_id},
-                )
-        return LocalEpisodicMemory(self.memory_root / "episodic_local"), LocalSemanticMemory(self.memory_root / "semantic_local")
-
-    def integrated_recall(self, situation: str) -> Dict[str, Any]:
-        logger.info("integrated_recall_start", extra={"agent_id": self.agent_id, "situation": situation[:50]})
-
-        episodes = self.episodic.retrieve_similar(
-            query=situation,
-            agent_id=self.agent_id,
-            n_results=3,
+        self.settings = load_memory_persistence_settings(
+            memory_root=memory_root,
+            sensitive_content_mode=sensitive_content_mode,
         )
+        self.episodic, self.semantic = self._build_backends(prefer_local_fallback)
+        self.procedural = ProceduralMemory(
+            self.settings.procedural_dir,
+            sensitive_content_mode=self.settings.sensitive_content_mode,
+        )
+
+    def _build_backends(self, prefer_local: bool) -> tuple[Any, Any]:
+        if not prefer_local:
+            try:
+                return (
+                    EpisodicMemory(str(self.settings.episodic_dir)),
+                    SemanticMemory(str(self.settings.semantic_dir)),
+                )
+            except ModuleNotFoundError:
+                logger.info("vector_memory_unavailable_using_local_fallback")
+        return (
+            LocalEpisodicMemory(self.settings.episodic_dir, self.settings.sensitive_content_mode),
+            LocalSemanticMemory(self.settings.semantic_dir, self.settings.sensitive_content_mode),
+        )
+
+    def integrated_recall(self, situation: str) -> dict[str, Any]:
+        episodes = self.episodic.retrieve_similar(situation, self.agent_id, n_results=3)
         facts = self.semantic.query_facts(situation, n_results=5)
         concepts = self.semantic.query_concepts(situation, n_results=3)
         procedures = self.procedural.retrieve_by_description(situation, n_results=3)
-
-        context = {
+        return {
             "situation": situation,
             "past_experiences": [
-                {"task": episode.task, "outcome": episode.outcome, "success": episode.success}
-                for episode in episodes
+                {"task": item.task, "outcome": item.outcome, "success": item.success} for item in episodes
             ],
-            "relevant_facts": [f"{fact.subject} {fact.predicate} {fact.object}" for fact in facts],
-            "relevant_concepts": [{"name": concept.name, "definition": concept.definition} for concept in concepts],
+            "relevant_facts": [f"{item.subject} {item.predicate} {item.object}" for item in facts],
+            "relevant_concepts": [
+                {"name": item.name, "definition": item.definition} for item in concepts
+            ],
             "applicable_procedures": [
-                {"name": procedure.name, "description": procedure.description, "steps": len(procedure.steps)}
-                for procedure in procedures
+                {"name": item.name, "description": item.description, "steps": len(item.steps)}
+                for item in procedures
             ],
         }
 
-        logger.info(
-            "integrated_recall_complete",
-            extra={
-                "agent_id": self.agent_id,
-                "episodes": len(episodes),
-                "facts": len(facts),
-                "concepts": len(concepts),
-                "procedures": len(procedures),
-            },
-        )
-        return context
-
-    def learn_from_success(self, episode: Episode) -> None:
-        self.episodic.store_episode(episode)
-
+    def learn_from_success(self, episode: Episode) -> str:
+        if not getattr(self.episodic, "has_episode", lambda _id: False)(episode.id):
+            self.episodic.store_episode(episode)
         if episode.success and len(episode.actions) >= 2:
-            procedure_name = f"procedure_from_{episode.id[:8]}" if episode.id else f"procedure_{int(time.time())}"
-            self.procedural.extract_procedure_from_episode(
-                episode_data={"actions": episode.actions, "tags": episode.tags or []},
-                name=procedure_name,
-                description=f"Learned from: {episode.task}",
-            )
+            name = f"procedure_from_{episode.id[:8]}"
+            if self.procedural.retrieve_by_name(name) is None:
+                self.procedural.extract_procedure_from_episode(
+                    {"actions": episode.actions, "tags": episode.tags or []},
+                    name,
+                    f"Learned from: {episode.task}",
+                )
+        return episode.id or ""
 
-        logger.info("learned_from_episode", extra={"episode_id": episode.id, "agent_id": self.agent_id})
-
-    def get_complete_stats(self) -> Dict[str, Any]:
+    def get_complete_stats(self) -> dict[str, Any]:
         return {
             "episodic": self.episodic.get_statistics(self.agent_id),
             "semantic": self.semantic.get_statistics(),
@@ -264,58 +237,100 @@ class ArtHippoNet:
 
 
 class CompleteAgentMemoryInterface:
-    """High-level agent interface for ArtHippoNet."""
+    """Public memory API that sanitizes content before any backend sees it."""
 
-    def __init__(self, agent_id: str, prefer_local_fallback: bool = False, memory_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        agent_id: str,
+        prefer_local_fallback: bool = False,
+        memory_root: str | Path | None = None,
+        sensitive_content_mode: str | None = None,
+    ) -> None:
         self.agent_id = agent_id
-        self.memory = ArtHippoNet(agent_id, prefer_local_fallback=prefer_local_fallback, memory_root=memory_root)
+        self.memory = ArtHippoNet(
+            agent_id,
+            prefer_local_fallback=prefer_local_fallback,
+            memory_root=memory_root,
+            sensitive_content_mode=sensitive_content_mode,
+        )
+        self.sensitive_content_mode = self.memory.settings.sensitive_content_mode
+
+    def _clean(self, value: Any) -> Any:
+        return sanitize_for_local_persistence(value, self.sensitive_content_mode)
 
     def remember_task(
         self,
         task: str,
-        actions: List[str],
+        actions: list[str],
         outcome: str,
         success: bool = True,
-        observations: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
+        observations: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> str:
+        payload = self._clean(
+            {
+                "task": task,
+                "actions": actions,
+                "outcome": outcome,
+                "observations": observations or [],
+                "tags": tags or [],
+            }
+        )
         episode = Episode(
             id=None,
             agent_id=self.agent_id,
             timestamp=time.time(),
-            task=task,
-            actions=actions,
-            observations=observations or [],
-            outcome=outcome,
+            task=payload["task"],
+            actions=payload["actions"],
+            observations=payload["observations"],
+            outcome=payload["outcome"],
             success=success,
             reward=1.0 if success else 0.0,
-            tags=tags or [],
+            tags=payload["tags"],
         )
-        episode_id = self.memory.episodic.store_episode(episode)
-        if success:
-            self.memory.learn_from_success(episode)
-        return episode_id
+        return self.memory.learn_from_success(episode)
 
-    def recall_for_situation(self, situation: str) -> Dict[str, Any]:
-        return self.memory.integrated_recall(situation)
+    def recall_for_situation(self, situation: str) -> dict[str, Any]:
+        return self.memory.integrated_recall(self._clean(situation))
 
-    def learn_fact(self, subject: str, predicate: str, obj: str) -> str:
-        fact = Fact(id=None, subject=subject, predicate=predicate, object=obj)
-        return self.memory.semantic.store_fact(fact)
+    def learn_fact(
+        self,
+        subject: str,
+        predicate: str,
+        value: str,
+        confidence: float = 1.0,
+        source: str = "agent",
+    ) -> str:
+        payload = self._clean({"subject": subject, "predicate": predicate, "object": value, "source": source})
+        return self.memory.semantic.store_fact(
+            Fact(None, payload["subject"], payload["predicate"], payload["object"], confidence, payload["source"], time.time())
+        )
 
-    def define_concept(self, name: str, definition: str, category: str, examples: Optional[List[str]] = None) -> str:
-        concept = Concept(id=None, name=name, definition=definition, category=category, examples=examples or [])
-        return self.memory.semantic.store_concept(concept)
+    def define_concept(
+        self,
+        name: str,
+        definition: str,
+        category: str,
+        related_concepts: Optional[list[str]] = None,
+        examples: Optional[list[str]] = None,
+    ) -> str:
+        payload = self._clean(
+            {
+                "name": name,
+                "definition": definition,
+                "category": category,
+                "related_concepts": related_concepts or [],
+                "examples": examples or [],
+            }
+        )
+        return self.memory.semantic.store_concept(Concept(id=None, **payload))
 
-    def get_procedure(self, name: str) -> Optional[Procedure]:
-        return self.memory.procedural.retrieve_by_name(name)
+    def get_stats(self) -> dict[str, Any]:
+        return self.memory.get_complete_stats()
 
-
-AgentMemoryInterface = CompleteAgentMemoryInterface
 
 __all__ = [
     "ArtHippoNet",
-    "AgentMemoryInterface",
     "CompleteAgentMemoryInterface",
     "LocalEpisodicMemory",
     "LocalSemanticMemory",
