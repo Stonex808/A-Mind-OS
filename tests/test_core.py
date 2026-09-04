@@ -74,6 +74,36 @@ class HarnessTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             assert_candidate_mutation_allowed("I0.root_authority")
 
+    def test_scaffolding_surfaces_preserve_fail_closed_policy(self) -> None:
+        for surface_id in (
+            "model_succession_policy",
+            "cross_model_state_transfer",
+            "consolidation_mutation_policy",
+        ):
+            with self.subTest(surface_id=surface_id):
+                self.assertEqual(classify_surface(surface_id).classification, SurfaceClass.CONDITIONAL)
+                with self.assertRaises(PermissionError):
+                    assert_candidate_mutation_allowed(surface_id)
+
+        for surface_id in ("M1.prompting", "M2.context_composition", "M6.provider_profile"):
+            with self.subTest(surface_id=surface_id):
+                self.assertEqual(classify_surface(surface_id).classification, SurfaceClass.EVOLVABLE)
+                assert_candidate_mutation_allowed(surface_id)
+
+        for surface_id in (
+            "I0.root_authority",
+            "I1.governance",
+            "I2.capability_safety",
+            "I3.evidence_integrity",
+            "I4.evaluation_integrity",
+            "I5.promotion_control",
+            "I6.trust_roots",
+        ):
+            with self.subTest(surface_id=surface_id):
+                self.assertEqual(classify_surface(surface_id).classification, SurfaceClass.PROTECTED)
+                with self.assertRaises(PermissionError):
+                    assert_candidate_mutation_allowed(surface_id)
+
     def test_scoped_admission_and_budget(self) -> None:
         broker = ToolBroker()
         broker.register("math.add", lambda a, b: a + b)

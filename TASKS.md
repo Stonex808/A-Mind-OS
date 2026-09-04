@@ -22,6 +22,11 @@
 - [ ] Wire lifecycle supervision to an OS-process adapter.
 - [ ] Add a genuinely sandboxed worker with an explicit capability contract.
 - [ ] Integrate a local model runtime behind the same admitted boundary.
+- [ ] Add a model-profile-bound prompt/context manifest and evaluation fixture.
+- [ ] Add an epistemic memory influence contract/receipt without creating a second memory store.
+- [ ] Add bounded consolidation scheduling as a separate read/evaluate/propose path before any mutation policy.
+- [ ] Specify and run a model-succession experiment against a virgin replacement-model baseline.
+- [ ] Only after evidence exists, evaluate LivingLLM-style cross-generation adaptation or weight/adapter transfer.
 - [ ] Implement security services and kernel telemetry before claiming the systemd boot graph works.
 - [ ] Replace the static shell only after the backend contract is stable.
 

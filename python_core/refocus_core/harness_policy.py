@@ -40,6 +40,9 @@ CONDITIONAL_SURFACES = frozenset({
     "evaluator_logic",
     "model_weights",
     "constitutional_governance",
+    "model_succession_policy",
+    "cross_model_state_transfer",
+    "consolidation_mutation_policy",
 })
 
 

@@ -33,6 +33,16 @@ Before the flow starts, the sensitive-content policy runs at the persistence bou
 
 Generated runtime state is never source code. `data/`, SQLite/JSONL files, sockets, and the shell activity feed are ignored so a clone starts from a deterministic baseline.
 
+## System intelligence and model substrate
+
+A-Mind is the persistent governed system; an active foundation model is a replaceable cognitive substrate, not A-Mind's identity or authority. The constitutional kernel preserves Stone's authority, governance and capability ceilings, evidence and evaluation integrity, promotion and rollback, and trust roots. Persistent cognitive state preserves evidence-bearing memory, project continuity, approved procedures, harness lineage, and eventually the spatial or environmental state described by D-006. Evolvable harness userland contains prompts, context composition, retrieval and routing heuristics, control flow, skills, and provider/model profiles. Models supply inference capacity beneath those boundaries.
+
+Memory is evidence under governance, not truth by persistence. Retained or retrieved content must not silently become verified fact; future memory influence must remain attributable to provenance, epistemic and temporal state, corroboration or contradiction, uncertainty, retrieval reason, influence scope, consolidation history, and supersession or forgetting state. This statement defines a contract direction and does not create another memory implementation.
+
+System and task prompts are M1 evolvable userland artifacts, not the constitution. Typed deterministic controls outside prompt prose remain authoritative for admission, capability ceilings, evidence requirements, promotion and rollback, and stop or approval semantics. A harness version is bound to an identified model profile and digest. Replacing its model therefore requires evaluation of a candidate harness/profile rather than blind reuse or an implicit identity transfer.
+
+The D-005 and D-006 conceptual contracts describe future memory and spatial/environmental state boundaries; they are not claims of current runnable implementation. Model succession and LivingLLM-style cross-generation adaptation remain conditional research work, not provider hot-swaps or operational core.
+
 ## Configuration and state
 
 `config/refocus-os.toml` is committed policy, contains no secrets, and resolves relative persistence paths from the repository root. Environment variables may redirect all demo and memory state for testing or deployment. The demo uses one SQLite database with separate run and task-event tables, plus human-readable run JSON and execution JSONL.
@@ -51,7 +61,7 @@ These controls are safeguards, not a production security claim. JSON/SQLite data
 
 ## Planned architecture
 
-The intended progression is: signed/admitted IPC → real sandboxed workers → model runtime → Hydra LangSec/CodeSec/SysSec services → OS-process supervision and eBPF telemetry → Tauri desktop shell. The committed systemd units and scoped `agents.md` files define vocabulary and ordering for that future work only. No planned layer may bypass the current rule that effects require deterministic admission and evidence.
+The immediate implementation priority remains signed/admitted IPC. The intended progression is: signed/admitted IPC → real sandboxed workers → model runtime → Hydra LangSec/CodeSec/SysSec services → OS-process supervision and eBPF telemetry → Tauri desktop shell. Later model-profile, epistemic-memory, consolidation, succession, and D-006 spatial work must extend these boundaries through separate typed, evaluated, and governed changes. The committed systemd units and scoped `agents.md` files define vocabulary and ordering for that future work only. No planned layer may bypass the current rule that effects require deterministic admission and evidence.
 
 ## Authority invariant
 
